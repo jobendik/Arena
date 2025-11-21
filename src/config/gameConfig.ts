@@ -52,6 +52,7 @@ const DEFAULT_VISUALS = {
     lightIntensity: 2,
     smokeParticles: 3,
     smokeSpeed: 0.5,
+    position: { x: 0, y: 0.02, z: -0.6 },
   },
   sprayPattern: {
     enabled: true,
@@ -115,7 +116,17 @@ export const WEAPON_CONFIG: WeaponConfig = {
       increasePerShot: 0.0008,
       recoveryRate: 3,
     },
-    ...DEFAULT_VISUALS
+    ...DEFAULT_VISUALS,
+    muzzle: {
+      lightColor: 0xffaa00,
+      lightRange: 5,
+      flashScale: { min: 0.7, max: 1.2 },
+      flashDuration: 0.06,
+      lightIntensity: 2.5,
+      smokeParticles: 4,
+      smokeSpeed: 0.6,
+      position: { x: 0, y: 0.04, z: -0.8 },
+    },
   },
   [WeaponType.AWP]: {
     name: 'AWP',
@@ -145,7 +156,16 @@ export const WEAPON_CONFIG: WeaponConfig = {
       recoveryRate: 1,
     },
     ...DEFAULT_VISUALS,
-    muzzle: { ...DEFAULT_VISUALS.muzzle, lightRange: 8 },
+    muzzle: {
+      lightColor: 0xffcc00,
+      lightRange: 10,
+      flashScale: { min: 1.5, max: 2.5 },
+      flashDuration: 0.08,
+      lightIntensity: 4,
+      smokeParticles: 6,
+      smokeSpeed: 0.8,
+      position: { x: 0, y: 0.05, z: -1.3 },
+    },
     screen: { ...DEFAULT_VISUALS.screen, fovPunch: 2, shakeIntensity: 0.3 }
   },
   [WeaponType.LMG]: {
@@ -176,7 +196,16 @@ export const WEAPON_CONFIG: WeaponConfig = {
       recoveryRate: 2,
     },
     ...DEFAULT_VISUALS,
-    muzzle: { ...DEFAULT_VISUALS.muzzle, lightRange: 6 }
+    muzzle: {
+      lightColor: 0xffaa00,
+      lightRange: 6,
+      flashScale: { min: 0.8, max: 1.4 },
+      flashDuration: 0.07,
+      lightIntensity: 2.8,
+      smokeParticles: 5,
+      smokeSpeed: 0.7,
+      position: { x: 0, y: 0, z: -0.95 },
+    },
   },
   [WeaponType.M4]: {
     name: 'M4',
@@ -205,7 +234,17 @@ export const WEAPON_CONFIG: WeaponConfig = {
       increasePerShot: 0.0007,
       recoveryRate: 4,
     },
-    ...DEFAULT_VISUALS
+    ...DEFAULT_VISUALS,
+    muzzle: {
+      lightColor: 0xffffaa,
+      lightRange: 4.5,
+      flashScale: { min: 0.6, max: 1.0 },
+      flashDuration: 0.05,
+      lightIntensity: 2.2,
+      smokeParticles: 3,
+      smokeSpeed: 0.5,
+      position: { x: 0, y: 0.02, z: -0.6 },
+    },
   },
   [WeaponType.Pistol]: {
     name: 'Pistol',
@@ -235,7 +274,16 @@ export const WEAPON_CONFIG: WeaponConfig = {
       recoveryRate: 5,
     },
     ...DEFAULT_VISUALS,
-    muzzle: { ...DEFAULT_VISUALS.muzzle, lightRange: 3 }
+    muzzle: {
+      lightColor: 0xffffcc,
+      lightRange: 3,
+      flashScale: { min: 0.3, max: 0.6 },
+      flashDuration: 0.04,
+      lightIntensity: 1.5,
+      smokeParticles: 2,
+      smokeSpeed: 0.4,
+      position: { x: 0, y: 0.05, z: -0.15 },
+    },
   },
   [WeaponType.Scar]: {
     name: 'SCAR',
@@ -265,7 +313,17 @@ export const WEAPON_CONFIG: WeaponConfig = {
       increasePerShot: 0.001,
       recoveryRate: 3,
     },
-    ...DEFAULT_VISUALS
+    ...DEFAULT_VISUALS,
+    muzzle: {
+      lightColor: 0xffbb00,
+      lightRange: 5.5,
+      flashScale: { min: 0.9, max: 1.5 },
+      flashDuration: 0.065,
+      lightIntensity: 2.7,
+      smokeParticles: 4,
+      smokeSpeed: 0.65,
+      position: { x: 0, y: 0.08, z: -0.5 },
+    },
   },
   [WeaponType.Shotgun]: {
     name: 'Shotgun',
@@ -296,7 +354,16 @@ export const WEAPON_CONFIG: WeaponConfig = {
       recoveryRate: 2,
     },
     ...DEFAULT_VISUALS,
-    muzzle: { ...DEFAULT_VISUALS.muzzle, lightRange: 7 },
+    muzzle: {
+      lightColor: 0xffaa33,
+      lightRange: 7,
+      flashScale: { min: 1.2, max: 2.0 },
+      flashDuration: 0.075,
+      lightIntensity: 3.5,
+      smokeParticles: 7,
+      smokeSpeed: 0.9,
+      position: { x: 0, y: 0.02, z: -1.0 },
+    },
     screen: { ...DEFAULT_VISUALS.screen, fovPunch: 1.5, shakeIntensity: 0.2 }
   },
   [WeaponType.Sniper]: {
@@ -329,7 +396,16 @@ export const WEAPON_CONFIG: WeaponConfig = {
       recoveryRate: 1,
     },
     ...DEFAULT_VISUALS,
-    muzzle: { ...DEFAULT_VISUALS.muzzle, lightRange: 8 },
+    muzzle: {
+      lightColor: 0xffffdd,
+      lightRange: 8,
+      flashScale: { min: 1.3, max: 2.2 },
+      flashDuration: 0.08,
+      lightIntensity: 3.8,
+      smokeParticles: 5,
+      smokeSpeed: 0.75,
+      position: { x: 0, y: 0.05, z: -1.25 },
+    },
     screen: { ...DEFAULT_VISUALS.screen, fovPunch: 2, shakeIntensity: 0.3 }
   },
   [WeaponType.Tec9]: {
@@ -362,7 +438,16 @@ export const WEAPON_CONFIG: WeaponConfig = {
       recoveryRate: 4,
     },
     ...DEFAULT_VISUALS,
-    muzzle: { ...DEFAULT_VISUALS.muzzle, lightRange: 4 }
+    muzzle: {
+      lightColor: 0xffdd88,
+      lightRange: 4,
+      flashScale: { min: 0.5, max: 0.9 },
+      flashDuration: 0.045,
+      lightIntensity: 2.0,
+      smokeParticles: 3,
+      smokeSpeed: 0.55,
+      position: { x: 0, y: 0.05, z: -0.35 },
+    },
   },
 };
 
@@ -372,7 +457,7 @@ export const ENEMY_TYPES: Record<string, EnemyType> = {
     speed: 4,
     damage: 10,
     fireRate: 1,
-    accuracy: 0.15,
+    accuracy: 0.03, // Reduced from 0.15 - more accurate at close range
     color: 0x22c55e,
     score: 100,
   },
@@ -381,7 +466,7 @@ export const ENEMY_TYPES: Record<string, EnemyType> = {
     speed: 5,
     damage: 15,
     fireRate: 2,
-    accuracy: 0.1,
+    accuracy: 0.02, // Reduced from 0.1 - soldiers are accurate
     color: 0xf59e0b,
     score: 200,
   },
@@ -390,7 +475,7 @@ export const ENEMY_TYPES: Record<string, EnemyType> = {
     speed: 2.5,
     damage: 25,
     fireRate: 0.5,
-    accuracy: 0.2,
+    accuracy: 0.05, // Reduced from 0.2 - slow but powerful
     color: 0xef4444,
     score: 300,
   },

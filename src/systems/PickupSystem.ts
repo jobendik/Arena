@@ -4,14 +4,33 @@ import { Player } from '../entities/Player';
 export interface Pickup {
   mesh: THREE.Mesh;
   effect: (player: Player, weaponAddAmmo?: (amount: number) => void) => void;
+  type: string;
 }
 
 export class PickupSystem {
   private pickups: Pickup[] = [];
   private scene: THREE.Scene;
+  private healthSound: THREE.Audio;
+  private armorSound: THREE.Audio;
+  private audioBuffers: Map<string, AudioBuffer> = new Map();
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, listener: THREE.AudioListener) {
     this.scene = scene;
+    this.healthSound = new THREE.Audio(listener);
+    this.armorSound = new THREE.Audio(listener);
+    this.loadAudio();
+  }
+
+  private loadAudio(): void {
+    const audioLoader = new THREE.AudioLoader();
+    
+    audioLoader.load('assets/audio/level/Health-Regen.mp3_8283c502.mp3', (buffer) => {
+      this.audioBuffers.set('health', buffer);
+    });
+    
+    audioLoader.load('assets/audio/level/Potion-Pickup.mp3_0d141815.mp3', (buffer) => {
+      this.audioBuffers.set('armor', buffer);
+    });
   }
 
   public create(type: string, position: THREE.Vector3): void {
@@ -71,7 +90,27 @@ export class PickupSystem {
     mesh.add(outline);
     this.scene.add(mesh);
 
-    this.pickups.push({ mesh, effect: config.effect });
+    this.pickups.push({ mesh, effect: config.effect, type });
+  }
+
+  private playPickupSound(type: string): void {
+    if (type === 'health') {
+      const buffer = this.audioBuffers.get('health');
+      if (buffer) {
+        if (this.healthSound.isPlaying) this.healthSound.stop();
+        this.healthSound.setBuffer(buffer);
+        this.healthSound.setVolume(0.5);
+        this.healthSound.play();
+      }
+    } else if (type === 'armor') {
+      const buffer = this.audioBuffers.get('armor');
+      if (buffer) {
+        if (this.armorSound.isPlaying) this.armorSound.stop();
+        this.armorSound.setBuffer(buffer);
+        this.armorSound.setVolume(0.5);
+        this.armorSound.play();
+      }
+    }
   }
 
   public update(playerPos: THREE.Vector3, player: Player, weaponAddAmmo?: (amount: number) => void): string | null {
@@ -85,6 +124,7 @@ export class PickupSystem {
       const dist = playerPos.distanceTo(pickup.mesh.position);
       if (dist < 1.5) {
         pickup.effect(player, weaponAddAmmo);
+        this.playPickupSound(pickup.type);
         this.scene.remove(pickup.mesh);
         this.pickups.splice(index, 1);
         pickedUp = 'pickup';

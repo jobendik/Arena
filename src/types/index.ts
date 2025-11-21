@@ -90,6 +90,7 @@ export interface WeaponStats {
     lightIntensity: number;
     smokeParticles: number;
     smokeSpeed: number;
+    position: { x: number; y: number; z: number };
   };
   sprayPattern: {
     enabled: boolean;

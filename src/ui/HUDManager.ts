@@ -2,13 +2,13 @@ export class HUDManager {
   private healthBar: HTMLElement;
   private armorBar: HTMLElement;
   private staminaBar: HTMLElement;
+  private weaponName: HTMLElement;
   private ammoDisplay: HTMLElement;
   private waveDisplay: HTMLElement;
   private scoreDisplay: HTMLElement;
   private enemiesDisplay: HTMLElement;
   private reloadIndicator: HTMLElement;
   private powerupIndicator: HTMLElement;
-  private lowHealthOverlay: HTMLElement;
   private damageOverlay: HTMLElement;
   private sniperScope: HTMLElement;
   private crosshair: HTMLElement;
@@ -16,18 +16,25 @@ export class HUDManager {
   private crosshairBottom: HTMLElement;
   private crosshairLeft: HTMLElement;
   private crosshairRight: HTMLElement;
+  
+  // Vignette system
+  private vignetteImpactFlash: HTMLElement;
+  private vignetteDamagePulse: HTMLElement;
+  private vignetteCritical: HTMLElement;
+  private impactFlashTimeout: number | null = null;
+  private damagePulseTimeout: number | null = null;
 
   constructor() {
     this.healthBar = document.getElementById('health-bar')!;
     this.armorBar = document.getElementById('armor-bar')!;
     this.staminaBar = document.getElementById('stamina-bar')!;
+    this.weaponName = document.getElementById('weapon-name')!;
     this.ammoDisplay = document.getElementById('ammo-display')!;
     this.waveDisplay = document.getElementById('wave-display')!;
     this.scoreDisplay = document.getElementById('score-display')!;
     this.enemiesDisplay = document.getElementById('enemies-remaining')!;
     this.reloadIndicator = document.getElementById('reload-indicator')!;
     this.powerupIndicator = document.getElementById('powerup-indicator')!;
-    this.lowHealthOverlay = document.getElementById('low-health-overlay')!;
     this.damageOverlay = document.getElementById('damage-overlay')!;
     this.sniperScope = document.getElementById('sniper-scope')!;
     this.crosshair = document.getElementById('crosshair')!;
@@ -35,6 +42,11 @@ export class HUDManager {
     this.crosshairBottom = document.getElementById('cross-bottom')!;
     this.crosshairLeft = document.getElementById('cross-left')!;
     this.crosshairRight = document.getElementById('cross-right')!;
+    
+    // Vignette system
+    this.vignetteImpactFlash = document.getElementById('vignette-impact-flash')!;
+    this.vignetteDamagePulse = document.getElementById('vignette-damage-pulse')!;
+    this.vignetteCritical = document.getElementById('vignette-critical')!;
   }
 
   public updateHealth(health: number, maxHealth: number): void {
@@ -46,7 +58,33 @@ export class HUDManager {
         : pct > 30
         ? 'linear-gradient(90deg, #f59e0b, #fbbf24)'
         : 'linear-gradient(90deg, #ef4444, #f87171)';
-    this.lowHealthOverlay.style.opacity = pct < 30 ? '0.5' : '0';
+    
+    // Update critical vignette based on HP
+    this.updateCriticalVignette(pct);
+  }
+  
+  private updateCriticalVignette(healthPercent: number): void {
+    if (healthPercent < 15) {
+      // Very critical - intense pulsing
+      this.vignetteCritical.style.opacity = '1';
+      this.vignetteCritical.classList.add('pulsing');
+    } else if (healthPercent < 30) {
+      // Critical - strong visible vignette with pulsing
+      this.vignetteCritical.style.opacity = '0.85';
+      this.vignetteCritical.classList.add('pulsing');
+    } else if (healthPercent < 50) {
+      // Moderate damage - noticeable vignette
+      this.vignetteCritical.style.opacity = '0.55';
+      this.vignetteCritical.classList.remove('pulsing');
+    } else if (healthPercent < 75) {
+      // Light damage - subtle warning
+      this.vignetteCritical.style.opacity = '0.25';
+      this.vignetteCritical.classList.remove('pulsing');
+    } else {
+      // Healthy - fade out
+      this.vignetteCritical.style.opacity = '0';
+      this.vignetteCritical.classList.remove('pulsing');
+    }
   }
 
   public updateArmor(armor: number, maxArmor: number): void {
@@ -55,6 +93,10 @@ export class HUDManager {
 
   public updateStamina(stamina: number, maxStamina: number): void {
     this.staminaBar.style.width = `${(stamina / maxStamina) * 100}%`;
+  }
+
+  public updateWeaponName(name: string): void {
+    this.weaponName.textContent = name;
   }
 
   public updateAmmo(current: number, reserve: number): void {
@@ -99,13 +141,73 @@ export class HUDManager {
       // Generic damage (no specific direction)
       this.damageOverlay.style.transform = 'translate(-50%, -50%)';
     }
-    
+
     setTimeout(() => {
       this.damageOverlay.style.opacity = '0';
     }, 200);
   }
-
-  public showHitmarker(isKill: boolean): void {
+  
+  public showDamageVignette(damageAmount: number, maxHealth: number, directionAngle?: number): void {
+    // Calculate damage intensity (0-1)
+    const damagePercent = (damageAmount / maxHealth) * 100;
+    const intensity = Math.min(damagePercent / 50, 1.0); // Cap at 50% of max health for full intensity
+    
+    // LAYER 1: Impact Flash (instant, sharp)
+    if (this.impactFlashTimeout) clearTimeout(this.impactFlashTimeout);
+    this.vignetteImpactFlash.style.opacity = Math.min(0.9, 0.5 + intensity * 0.7).toString();
+    
+    // Optional directional impact (stronger on the side of the hit)
+    if (directionAngle !== undefined) {
+      const radians = (directionAngle * Math.PI) / 180;
+      const x = Math.sin(radians) * 10;
+      const y = -Math.cos(radians) * 10;
+      this.vignetteImpactFlash.style.transform = `translate(${x}%, ${y}%)`;
+    } else {
+      this.vignetteImpactFlash.style.transform = 'translate(0, 0)';
+    }
+    
+    this.impactFlashTimeout = window.setTimeout(() => {
+      this.vignetteImpactFlash.style.opacity = '0';
+      this.vignetteImpactFlash.style.transform = 'translate(0, 0)';
+    }, 120);
+    
+    // LAYER 2: Damage Pulse (expanding glow)
+    if (this.damagePulseTimeout) clearTimeout(this.damagePulseTimeout);
+    
+    // Color based on damage severity
+    const pulseColor = damagePercent > 30 
+      ? 'rgba(255, 0, 51, INTENSITY)' // Heavy hit - bright red
+      : 'rgba(255, 165, 0, INTENSITY)'; // Light hit - orange
+    
+    const pulseIntensity = Math.max(0.6, intensity * 1.2); // Much more visible
+    this.vignetteDamagePulse.style.background = `
+      radial-gradient(
+        ellipse at center,
+        transparent 30%,
+        ${pulseColor.replace('INTENSITY', (pulseIntensity * 0.3).toString())} 45%,
+        ${pulseColor.replace('INTENSITY', (pulseIntensity * 0.7).toString())} 60%,
+        ${pulseColor.replace('INTENSITY', (pulseIntensity * 0.95).toString())} 75%,
+        ${pulseColor.replace('INTENSITY', (pulseIntensity * 0.8).toString())} 90%
+      )
+    `;
+    
+    this.vignetteDamagePulse.style.opacity = Math.min(pulseIntensity, 0.95).toString();
+    this.vignetteDamagePulse.classList.add('pulsing');
+    
+    // Expand pulse
+    setTimeout(() => {
+      this.vignetteDamagePulse.classList.remove('pulsing');
+    }, 100);
+    
+    this.damagePulseTimeout = window.setTimeout(() => {
+      this.vignetteDamagePulse.style.opacity = '0';
+    }, 400);
+    
+    // Also trigger directional damage indicator
+    if (directionAngle !== undefined) {
+      this.flashDamage(directionAngle);
+    }
+  }  public showHitmarker(isKill: boolean): void {
     const hitmarker = document.getElementById('hitmarker')!;
     hitmarker.style.opacity = '1';
     hitmarker.style.transform = isKill

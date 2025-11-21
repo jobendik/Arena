@@ -24,7 +24,20 @@ export class Player {
   public landingImpact = 0;
   public jumpLift = 0;
 
-  constructor() {
+  // Audio
+  private audioBuffers: Record<string, AudioBuffer> = {};
+  private footstepSounds: THREE.Audio[] = [];
+  private jumpSound: THREE.Audio;
+  private landSound: THREE.Audio;
+  private hurtSounds: THREE.Audio[] = [];
+  private deathSound: THREE.Audio;
+  private heartbeatSound: THREE.Audio;
+  private lastFootstepTime = 0;
+  private footstepIndex = 0;
+  private heartbeatInterval: number | null = null;
+  private isHeartbeatPlaying: boolean = false;
+
+  constructor(listener: THREE.AudioListener) {
     this.position = new THREE.Vector3(0, PLAYER_CONFIG.height, 0);
     this.velocity = new THREE.Vector3();
     this.prevVelocity = new THREE.Vector3();
@@ -32,6 +45,63 @@ export class Player {
     this.armor = 0;
     this.stamina = PLAYER_CONFIG.maxStamina;
     this.currentFOV = 75; // Will be updated by camera config
+
+    // Initialize audio objects
+    for (let i = 0; i < 6; i++) {
+      this.footstepSounds.push(new THREE.Audio(listener));
+    }
+    for (let i = 0; i < 3; i++) {
+      this.hurtSounds.push(new THREE.Audio(listener));
+    }
+    this.jumpSound = new THREE.Audio(listener);
+    this.landSound = new THREE.Audio(listener);
+    this.deathSound = new THREE.Audio(listener);
+    this.heartbeatSound = new THREE.Audio(listener);
+    this.heartbeatSound.setVolume(0.6);
+
+    this.loadAudio();
+  }
+
+  private loadAudio(): void {
+    const audioLoader = new THREE.AudioLoader();
+    const basePath = 'assets/audio/player/';
+
+    // Load footstep sounds
+    for (let i = 1; i <= 6; i++) {
+      const path = `${basePath}Concrete-Run-${i}.mp3_${['c0954406', 'bcd23528', '721706e6', '4f98c76e', '121ee958', 'a62fc298'][i - 1]}.mp3`;
+      audioLoader.load(path, (buffer) => {
+        this.audioBuffers[path] = buffer;
+      }, undefined, (error) => console.warn(`Failed to load footstep: ${path}`, error));
+    }
+
+    // Load hurt sounds
+    const hurtPaths = [
+      `${basePath}Echo-Grunt-1.mp3_1cd206a1.mp3`,
+      `${basePath}Echo-Grunt-2.mp3_17321d9c.mp3`,
+      `${basePath}Echo-Grunt-3.mp3_31597fb1.mp3`
+    ];
+    hurtPaths.forEach(path => {
+      audioLoader.load(path, (buffer) => {
+        this.audioBuffers[path] = buffer;
+      }, undefined, (error) => console.warn(`Failed to load hurt sound: ${path}`, error));
+    });
+
+    // Load jump and land sounds
+    audioLoader.load(`${basePath}Jump.mp3_523dd26f.mp3`, (buffer) => {
+      this.audioBuffers['jump'] = buffer;
+    }, undefined, (error) => console.warn('Failed to load jump sound', error));
+
+    audioLoader.load(`${basePath}Land-1.mp3_58b9ba36.mp3`, (buffer) => {
+      this.audioBuffers['land'] = buffer;
+    }, undefined, (error) => console.warn('Failed to load land sound', error));
+
+    audioLoader.load(`${basePath}Echo-Death-1.mp3_4264c0fa.mp3`, (buffer) => {
+      this.audioBuffers['death'] = buffer;
+    }, undefined, (error) => console.warn('Failed to load death sound', error));
+    
+    audioLoader.load(`${basePath}Heart-Beat.mp3_1e759b97.mp3`, (buffer) => {
+      this.audioBuffers['heartbeat'] = buffer;
+    }, undefined, (error) => console.warn('Failed to load heartbeat sound', error));
   }
 
   public takeDamage(damage: number): boolean {
@@ -45,9 +115,126 @@ export class Player {
 
     if (remaining > 0) {
       this.health -= remaining;
+      this.playHurtSound();
     }
 
     return this.health <= 0;
+  }
+
+  private playFootstepSound(): void {
+    const basePath = 'assets/audio/player/';
+    const hashes = ['c0954406', 'bcd23528', '721706e6', '4f98c76e', '121ee958', 'a62fc298'];
+    const soundIndex = this.footstepIndex % 6;
+    const path = `${basePath}Concrete-Run-${soundIndex + 1}.mp3_${hashes[soundIndex]}.mp3`;
+
+    if (this.audioBuffers[path] && this.footstepSounds[soundIndex]) {
+      const sound = this.footstepSounds[soundIndex];
+      if (sound.isPlaying) sound.stop();
+      sound.setBuffer(this.audioBuffers[path]);
+      sound.setVolume(0.3);
+      sound.play();
+    }
+
+    this.footstepIndex = (this.footstepIndex + 1) % 6;
+  }
+
+  private playJumpSound(): void {
+    if (this.audioBuffers['jump']) {
+      if (this.jumpSound.isPlaying) this.jumpSound.stop();
+      this.jumpSound.setBuffer(this.audioBuffers['jump']);
+      this.jumpSound.setVolume(0.4);
+      this.jumpSound.play();
+    }
+  }
+
+  private playLandSound(): void {
+    if (this.audioBuffers['land']) {
+      if (this.landSound.isPlaying) this.landSound.stop();
+      this.landSound.setBuffer(this.audioBuffers['land']);
+      this.landSound.setVolume(0.5);
+      this.landSound.play();
+    }
+  }
+
+  private playHurtSound(): void {
+    const basePath = 'assets/audio/player/';
+    const hurtPaths = [
+      `${basePath}Echo-Grunt-1.mp3_1cd206a1.mp3`,
+      `${basePath}Echo-Grunt-2.mp3_17321d9c.mp3`,
+      `${basePath}Echo-Grunt-3.mp3_31597fb1.mp3`
+    ];
+    const randomIndex = Math.floor(Math.random() * 3);
+    const path = hurtPaths[randomIndex];
+
+    if (this.audioBuffers[path] && this.hurtSounds[randomIndex]) {
+      const sound = this.hurtSounds[randomIndex];
+      if (sound.isPlaying) sound.stop();
+      sound.setBuffer(this.audioBuffers[path]);
+      sound.setVolume(0.6);
+      sound.play();
+    }
+  }
+
+  public playDeathSound(): void {
+    this.stopHeartbeat();
+    if (this.audioBuffers['death']) {
+      if (this.deathSound.isPlaying) this.deathSound.stop();
+      this.deathSound.setBuffer(this.audioBuffers['death']);
+      this.deathSound.setVolume(0.8);
+      this.deathSound.play();
+    }
+  }
+  
+  public startHeartbeat(): void {
+    if (this.isHeartbeatPlaying || !this.audioBuffers['heartbeat']) return;
+    
+    this.isHeartbeatPlaying = true;
+    
+    const playHeartbeat = () => {
+      if (this.audioBuffers['heartbeat'] && this.isHeartbeatPlaying) {
+        if (this.heartbeatSound.isPlaying) this.heartbeatSound.stop();
+        this.heartbeatSound.setBuffer(this.audioBuffers['heartbeat']);
+        this.heartbeatSound.play();
+      }
+    };
+    
+    // Play immediately
+    playHeartbeat();
+    
+    // Then repeat every 900ms (66 BPM - tense heartbeat)
+    this.heartbeatInterval = window.setInterval(playHeartbeat, 900);
+  }
+  
+  public stopHeartbeat(): void {
+    this.isHeartbeatPlaying = false;
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+    if (this.heartbeatSound.isPlaying) {
+      this.heartbeatSound.stop();
+    }
+  }
+  
+  public updateHeartbeat(healthPercent: number): void {
+    if (healthPercent <= 50 && !this.isHeartbeatPlaying) {
+      this.startHeartbeat();
+      
+      // Adjust heartbeat speed based on health
+      if (this.heartbeatInterval) {
+        clearInterval(this.heartbeatInterval);
+        const interval = healthPercent < 25 ? 700 : 900; // Faster when very low
+        this.heartbeatInterval = window.setInterval(() => {
+          if (this.audioBuffers['heartbeat'] && this.isHeartbeatPlaying) {
+            if (this.heartbeatSound.isPlaying) this.heartbeatSound.stop();
+            this.heartbeatSound.setBuffer(this.audioBuffers['heartbeat']);
+            this.heartbeatSound.play();
+          }
+        }, interval);
+      }
+    } else if (healthPercent > 50 && this.isHeartbeatPlaying) {
+      this.stopHeartbeat();
+    }
   }
 
   public heal(amount: number): void {
@@ -143,6 +330,16 @@ export class Player {
     const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z);
     this.headBobTime += delta * speed * 2;
 
+    // Footstep sounds
+    if (this.onGround && speed > 1) {
+      const footstepInterval = this.isSprinting ? 0.3 : 0.4;
+      this.lastFootstepTime += delta;
+      if (this.lastFootstepTime >= footstepInterval) {
+        this.playFootstepSound();
+        this.lastFootstepTime = 0;
+      }
+    }
+
     // Jump mechanics
     if (this.onGround) {
       this.coyoteTimer = PLAYER_CONFIG.coyoteTime;
@@ -160,6 +357,7 @@ export class Player {
       this.canCutJump = true;
       this.coyoteTimer = 0;
       this.jumpBufferTimer = 0;
+      this.playJumpSound();
     }
 
     if (canCutJump && this.canCutJump && this.velocity.y > 0) {
@@ -225,6 +423,7 @@ export class Player {
       const landingSpeed = Math.abs(this.prevVelocity.y);
       if (landingSpeed > 5) {
         this.landingImpact = Math.min(landingSpeed / 20, 1);
+        this.playLandSound();
       }
       newPos.y = PLAYER_CONFIG.height;
       this.velocity.y = 0;

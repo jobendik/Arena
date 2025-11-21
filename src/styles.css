@@ -26,91 +26,241 @@ body {
   z-index: 100;
 }
 
+/* Health Bar - AAA FPS Style */
 #health-bar-container {
   position: absolute;
   bottom: 40px;
   left: 20px;
-  width: 250px;
-  height: 25px;
-  background: rgba(0, 0, 0, 0.7);
-  border: 2px solid #22c55e;
-  box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+  width: 280px;
+  height: 28px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.75) 100%);
+  clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  box-shadow: 
+    inset 0 0 20px rgba(0, 0, 0, 0.6),
+    0 4px 12px rgba(0, 0, 0, 0.5),
+    0 0 15px rgba(34, 197, 94, 0.3);
+  overflow: hidden;
+}
+
+#health-bar-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(34, 197, 94, 0.6) 50%, transparent 100%);
+}
+
+#health-bar-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 50%, rgba(0, 0, 0, 0.2) 100%);
+  pointer-events: none;
 }
 
 #health-bar {
   height: 100%;
   width: 100%;
-  background: linear-gradient(90deg, #22c55e, #4ade80);
-  transition: width 0.2s, background-color 0.3s;
-  box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.3);
+  background: linear-gradient(90deg, #16a34a 0%, #22c55e 50%, #4ade80 100%);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s;
+  box-shadow: 
+    inset 0 2px 8px rgba(255, 255, 255, 0.3),
+    inset 0 -2px 8px rgba(0, 0, 0, 0.3),
+    0 0 15px rgba(34, 197, 94, 0.5);
+  position: relative;
+  clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+}
+
+#health-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.25) 0%, transparent 100%);
 }
 
 #health-label {
   position: absolute;
-  bottom: 68px;
-  left: 20px;
+  bottom: 71px;
+  left: 28px;
   color: #22c55e;
-  font-size: 12px;
-  font-weight: bold;
-  text-shadow: 0 0 5px rgba(34, 197, 94, 0.8);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 10px rgba(34, 197, 94, 0.5);
+  opacity: 0.9;
+  z-index: 10;
 }
 
+/* Armor Bar - AAA FPS Style */
 #armor-bar-container {
   position: absolute;
-  bottom: 75px;
+  bottom: 100px;
   left: 20px;
-  width: 250px;
-  height: 15px;
-  background: rgba(0, 0, 0, 0.7);
-  border: 2px solid #3b82f6;
-  box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+  width: 280px;
+  height: 20px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.75) 100%);
+  clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  box-shadow: 
+    inset 0 0 15px rgba(0, 0, 0, 0.6),
+    0 3px 10px rgba(0, 0, 0, 0.4),
+    0 0 12px rgba(59, 130, 246, 0.25);
+  overflow: hidden;
+}
+
+#armor-bar-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.5) 50%, transparent 100%);
+}
+
+#armor-bar-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 50%, rgba(0, 0, 0, 0.15) 100%);
+  pointer-events: none;
 }
 
 #armor-bar {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, #3b82f6, #60a5fa);
-  transition: width 0.2s;
-  box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.3);
+  background: linear-gradient(90deg, #2563eb 0%, #3b82f6 50%, #60a5fa 100%);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    inset 0 2px 6px rgba(255, 255, 255, 0.3),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.3),
+    0 0 12px rgba(59, 130, 246, 0.4);
+  position: relative;
+  clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+}
+
+#armor-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
 }
 
 #armor-label {
   position: absolute;
-  bottom: 93px;
-  left: 20px;
+  bottom: 123px;
+  left: 26px;
   color: #3b82f6;
   font-size: 10px;
-  font-weight: bold;
-  text-shadow: 0 0 5px rgba(59, 130, 246, 0.8);
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 10px rgba(59, 130, 246, 0.4);
+  opacity: 0.85;
+  z-index: 10;
 }
 
+/* Stamina Bar - AAA FPS Style */
 #stamina-bar-container {
   position: absolute;
-  bottom: 110px;
+  bottom: 138px;
   left: 20px;
-  width: 250px;
-  height: 10px;
-  background: rgba(0, 0, 0, 0.7);
-  border: 2px solid #f59e0b;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+  width: 280px;
+  height: 14px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.75) 100%);
+  clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  box-shadow: 
+    inset 0 0 12px rgba(0, 0, 0, 0.6),
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    0 0 10px rgba(245, 158, 11, 0.2);
+  overflow: hidden;
+}
+
+#stamina-bar-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.4) 50%, transparent 100%);
+}
+
+#stamina-bar-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, transparent 50%, rgba(0, 0, 0, 0.1) 100%);
+  pointer-events: none;
 }
 
 #stamina-bar {
   height: 100%;
   width: 100%;
-  background: linear-gradient(90deg, #f59e0b, #fbbf24);
-  transition: width 0.1s;
-  box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.3);
+  background: linear-gradient(90deg, #d97706 0%, #f59e0b 50%, #fbbf24 100%);
+  transition: width 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.25),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.25),
+    0 0 10px rgba(245, 158, 11, 0.35);
+  position: relative;
+  clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+
+#stamina-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
 }
 
 #stamina-label {
   position: absolute;
-  bottom: 123px;
-  left: 20px;
+  bottom: 155px;
+  left: 24px;
   color: #f59e0b;
-  font-size: 10px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 10px rgba(245, 158, 11, 0.3);
+  opacity: 0.8;
+  z-index: 10;
+}
+
+#weapon-name {
+  position: absolute;
+  bottom: 78px;
+  right: 40px;
+  color: #fff;
+  font-size: 18px;
   font-weight: bold;
-  text-shadow: 0 0 5px rgba(245, 158, 11, 0.8);
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+  opacity: 0.85;
+  letter-spacing: 1px;
 }
 
 #ammo-display {
@@ -500,7 +650,7 @@ body {
   transform: scale(1.05);
 }
 
-/* Damage Indicator */
+/* Damage Indicator (directional arrow) */
 #damage-overlay {
   position: absolute;
   top: 50%;
@@ -517,14 +667,110 @@ body {
   transition: opacity 0.15s ease-out;
 }
 
-/* Low Health Overlay */
+/* ===== DAMAGE VIGNETTE SYSTEM (3 LAYERS) ===== */
+
+/* LAYER 1: Impact Flash - Sharp instant neon ring */
+#vignette-impact-flash {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 95;
+  background: 
+    radial-gradient(
+      ellipse at center,
+      transparent 40%,
+      rgba(255, 0, 51, 0.4) 60%,
+      rgba(255, 51, 102, 1) 75%,
+      rgba(255, 85, 136, 1) 85%,
+      rgba(255, 51, 102, 0.8) 95%
+    );
+  mix-blend-mode: screen;
+  filter: blur(2px);
+  transition: opacity 0.08s ease-out;
+}
+
+/* LAYER 2: Damage Pulse - Soft expanding glow */
+#vignette-damage-pulse {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 94;
+  background: 
+    radial-gradient(
+      ellipse at center,
+      transparent 30%,
+      rgba(255, 51, 102, 0.2) 45%,
+      rgba(255, 51, 102, 0.7) 60%,
+      rgba(255, 0, 51, 0.9) 75%,
+      rgba(200, 0, 40, 0.7) 90%
+    );
+  mix-blend-mode: screen;
+  filter: blur(12px);
+  transform: scale(0.9);
+  transition: opacity 0.35s ease-out, transform 0.12s ease-out;
+}
+
+#vignette-damage-pulse.pulsing {
+  transform: scale(1.02);
+}
+
+/* LAYER 3: Critical Vignette - Persistent danger state */
+#vignette-critical {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 93;
+  background: 
+    radial-gradient(
+      ellipse at center,
+      transparent 20%,
+      rgba(200, 0, 34, 0) 35%,
+      rgba(200, 0, 34, 0.4) 50%,
+      rgba(170, 0, 34, 0.7) 70%,
+      rgba(120, 0, 25, 0.85) 85%,
+      rgba(80, 0, 17, 0.95) 100%
+    );
+  mix-blend-mode: normal;
+  filter: blur(3px);
+  transition: opacity 0.4s ease-in-out;
+}
+
+#vignette-critical.pulsing {
+  animation: criticalPulse 0.9s ease-in-out infinite;
+}
+
+@keyframes criticalPulse {
+  0%, 100% {
+    opacity: 0.75;
+    transform: scale(1);
+    filter: blur(3px);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.02);
+    filter: blur(5px);
+  }
+}
+
+/* Low Health Overlay (deprecated but kept for compatibility) */
 #low-health-overlay {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle, transparent 40%, rgba(255, 0, 0, 0.3) 100%);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s;

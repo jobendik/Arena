@@ -9,7 +9,7 @@ import { InputManager } from './core/InputManager';
 import { PostProcessing } from './core/PostProcessing';
 import { HUDManager } from './ui/HUDManager';
 import { GameState } from './types';
-import { PLAYER_CONFIG, CAMERA_CONFIG } from './config/gameConfig';
+import { PLAYER_CONFIG, CAMERA_CONFIG, WEAPON_CONFIG } from './config/gameConfig';
 
 export class Game {
   private scene: THREE.Scene;
@@ -65,11 +65,11 @@ export class Game {
     console.log('Renderer added to DOM');
 
     // Initialize game systems
-    this.player = new Player();
+    this.player = new Player(listener);
     this.weaponSystem = new WeaponSystem(this.camera, listener);
-    this.enemyManager = new EnemyManager(this.scene);
+    this.enemyManager = new EnemyManager(this.scene, listener);
     this.particleSystem = new ParticleSystem(this.scene);
-    this.pickupSystem = new PickupSystem(this.scene);
+    this.pickupSystem = new PickupSystem(this.scene, listener);
     this.arena = new Arena(this.scene);
     this.inputManager = new InputManager(CAMERA_CONFIG.mouseSensitivity);
     this.hudManager = new HUDManager();
@@ -210,10 +210,12 @@ export class Game {
 
     this.inputManager.setWeaponSelectCallback((index) => {
       this.weaponSystem.switchWeapon(index);
+      this.hudManager.updateWeaponName(WEAPON_CONFIG[this.weaponSystem.currentWeaponType].name);
     });
 
     this.inputManager.setScrollCallback((delta) => {
       this.weaponSystem.scrollWeapon(delta);
+      this.hudManager.updateWeaponName(WEAPON_CONFIG[this.weaponSystem.currentWeaponType].name);
     });
 
     this.inputManager.setZoomCallback((isZoomed) => {
@@ -331,6 +333,9 @@ export class Game {
   private gameOver(): void {
     this.gameState.running = false;
     document.exitPointerLock();
+    
+    // Play death sound
+    this.player.playDeathSound();
 
     const time = (performance.now() - this.gameState.timeStarted) / 1000;
     const accuracy =
@@ -350,9 +355,12 @@ export class Game {
   }
 
   private updateHUD(): void {
+    const healthPercent = (this.player.health / PLAYER_CONFIG.maxHealth) * 100;
     this.hudManager.updateHealth(this.player.health, PLAYER_CONFIG.maxHealth);
+    this.player.updateHeartbeat(healthPercent);
     this.hudManager.updateArmor(this.player.armor, PLAYER_CONFIG.maxArmor);
     this.hudManager.updateStamina(this.player.stamina, PLAYER_CONFIG.maxStamina);
+    this.hudManager.updateWeaponName(WEAPON_CONFIG[this.weaponSystem.currentWeaponType].name);
     this.hudManager.updateAmmo(this.weaponSystem.currentMag, this.weaponSystem.reserveAmmo);
     this.hudManager.updateWave(this.gameState.wave);
     this.hudManager.updateScore(this.gameState.score);
@@ -405,7 +413,7 @@ export class Game {
     this.updateCamera(delta);
 
     // Update enemies
-    this.enemyManager.update(delta, this.player.position, this.arena.navMeshObstacles, (enemy) => {
+    this.enemyManager.update(delta, this.player.position, this.arena.navMeshObstacles, this.arena.arenaObjects, (enemy) => {
       this.handleEnemyShoot(enemy);
     });
 
@@ -515,6 +523,9 @@ export class Game {
   }
 
   private handleEnemyShoot(enemy: Enemy): void {
+    // Play enemy shoot sound
+    this.enemyManager.playShootSound(enemy);
+    
     if (enemy.muzzleFlash) {
       (enemy.muzzleFlash.material as THREE.MeshBasicMaterial).opacity = 1;
       setTimeout(() => {
@@ -522,22 +533,44 @@ export class Game {
       }, 50);
     }
 
+    // Calculate direction with distance-based accuracy falloff
+    const distToPlayer = enemy.mesh.position.distanceTo(this.player.position);
+    const accuracyMultiplier = Math.min(1.0 + distToPlayer * 0.05, 2.0); // Worse at distance
+    const spread = enemy.accuracy * accuracyMultiplier;
+    
     const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(enemy.mesh.quaternion);
-    dir.x += (Math.random() - 0.5) * enemy.accuracy;
-    dir.y += (Math.random() - 0.5) * enemy.accuracy;
+    dir.x += (Math.random() - 0.5) * spread;
+    dir.y += (Math.random() - 0.5) * spread;
     dir.normalize();
 
-    const raycaster = new THREE.Raycaster(enemy.mesh.position.clone().add(new THREE.Vector3(0, 1, 0)), dir);
+    const shootOrigin = enemy.mesh.position.clone().add(new THREE.Vector3(0, 1, 0));
+    const raycaster = new THREE.Raycaster(shootOrigin, dir);
+    
+    // Check for obstacles first - use recursive true to catch all geometry
+    const meshes = this.arena.arenaObjects.map(obj => obj.mesh);
+    const obstacleIntersects = raycaster.intersectObjects(meshes, true);
+    
+    // Player box from bottom to top of player
     const playerBox = new THREE.Box3(
       new THREE.Vector3(
-        this.player.position.x - 0.4,
+        this.player.position.x - 0.5,
         this.player.position.y - PLAYER_CONFIG.height,
-        this.player.position.z - 0.4
+        this.player.position.z - 0.5
       ),
-      new THREE.Vector3(this.player.position.x + 0.4, this.player.position.y, this.player.position.z + 0.4)
+      new THREE.Vector3(
+        this.player.position.x + 0.5,
+        this.player.position.y + 0.2,
+        this.player.position.z + 0.5
+      )
     );
 
-    if (raycaster.ray.intersectsBox(playerBox)) {
+    // Calculate distance to player
+    const distanceToPlayer = shootOrigin.distanceTo(this.player.position);
+    
+    // Check if any obstacle is closer than the player (with small buffer)
+    const hasObstacleInWay = obstacleIntersects.some(intersect => intersect.distance < distanceToPlayer - 0.5);
+    
+    if (!hasObstacleInWay && raycaster.ray.intersectsBox(playerBox)) {
       const isDead = this.player.takeDamage(enemy.damage);
       
       // Calculate angle from player to enemy for directional damage indicator
@@ -547,7 +580,8 @@ export class Game {
       const playerYaw = this.player.rotation.y * (180 / Math.PI);
       const relativeAngle = angleToEnemy - playerYaw;
       
-      this.hudManager.flashDamage(relativeAngle);
+      // Trigger dramatic damage vignette system
+      this.hudManager.showDamageVignette(enemy.damage, PLAYER_CONFIG.maxHealth, relativeAngle);
       this.weaponSystem.cameraShake.intensity = Math.max(this.weaponSystem.cameraShake.intensity, 0.04);
 
       if (isDead) {

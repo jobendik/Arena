@@ -18,15 +18,25 @@ export interface Enemy {
   muzzleFlash: THREE.Mesh | null;
   strafeDir: number;
   strafeTime: number;
+  weaponType: string;
+  shootSound: THREE.Audio;
+  hurtSounds: THREE.Audio[];
+  deathSound: THREE.Audio;
+  jumpSound: THREE.Audio;
 }
 
 export class EnemyManager {
   private enemies: Enemy[] = [];
   private scene: THREE.Scene;
   private spawnPoints: THREE.Vector3[];
+  private listener: THREE.AudioListener;
+  private audioLoader: THREE.AudioLoader;
+  private audioBuffers: Record<string, AudioBuffer> = {};
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, listener: THREE.AudioListener) {
     this.scene = scene;
+    this.listener = listener;
+    this.audioLoader = new THREE.AudioLoader();
     this.spawnPoints = [
       new THREE.Vector3(25, 0, 25),
       new THREE.Vector3(-25, 0, 25),
@@ -37,6 +47,33 @@ export class EnemyManager {
       new THREE.Vector3(0, 0, 25),
       new THREE.Vector3(0, 0, -25),
     ];
+    this.loadAudio();
+  }
+
+  private loadAudio(): void {
+    const audioFiles = {
+      pistolShoot: 'assets/audio/weapons/Pistol-Fire.mp3_b6b25ed9.mp3',
+      akShoot: 'assets/audio/weapons/AK47-Fire.mp3_aad0f6c9.mp3',
+      awpShoot: 'assets/audio/weapons/AWP-Fire.mp3_1b838826.mp3',
+      hurtFemale1: 'assets/audio/enemy/Female-Grunt-1.mp3_5f82c672.mp3',
+      hurtFemale2: 'assets/audio/enemy/Female-Grunt-2.mp3_b787f958.mp3',
+      hurtFemale3: 'assets/audio/enemy/Female-Grunt-3.mp3_4d6460fd.mp3',
+      deathFemale: 'assets/audio/enemy/Female-Death-1.mp3_37cc105e.mp3',
+      jumpFemale: 'assets/audio/enemy/Female-Jump-2.mp3_3f5bd70e.mp3',
+    };
+
+    Object.entries(audioFiles).forEach(([key, path]) => {
+      this.audioLoader.load(
+        path,
+        (buffer) => {
+          this.audioBuffers[key] = buffer;
+        },
+        undefined,
+        (error) => {
+          console.error(`Failed to load ${key}:`, error);
+        }
+      );
+    });
   }
 
   public createEnemy(type: string, position: THREE.Vector3): void {
@@ -97,6 +134,31 @@ export class EnemyManager {
     group.position.copy(position);
     this.scene.add(group);
 
+    // Assign weapon based on enemy type
+    let weaponType = 'pistolShoot';
+    if (type === 'soldier') {
+      weaponType = 'akShoot';
+    } else if (type === 'heavy') {
+      weaponType = 'awpShoot';
+    }
+
+    // Create audio objects
+    const shootSound = new THREE.Audio(this.listener);
+    group.add(shootSound);
+
+    const hurtSounds: THREE.Audio[] = [];
+    for (let i = 0; i < 3; i++) {
+      const hurtSound = new THREE.Audio(this.listener);
+      group.add(hurtSound);
+      hurtSounds.push(hurtSound);
+    }
+
+    const deathSound = new THREE.Audio(this.listener);
+    group.add(deathSound);
+
+    const jumpSound = new THREE.Audio(this.listener);
+    group.add(jumpSound);
+
     this.enemies.push({
       mesh: group,
       type,
@@ -114,13 +176,44 @@ export class EnemyManager {
       muzzleFlash: enemyMuzzle,
       strafeDir: Math.random() > 0.5 ? 1 : -1,
       strafeTime: 0,
+      weaponType,
+      shootSound,
+      hurtSounds,
+      deathSound,
+      jumpSound,
     });
+  }
+
+  private hasLineOfSight(
+    enemyPos: THREE.Vector3,
+    playerPos: THREE.Vector3,
+    obstacles: Array<{ mesh: THREE.Mesh; box: THREE.Box3 }>
+  ): boolean {
+    // Cast ray from enemy eye level to player center mass
+    const eyeHeight = 1.5;
+    const from = enemyPos.clone();
+    from.y = eyeHeight;
+    const to = playerPos.clone();
+    to.y = 0.8; // Player center mass
+
+    const direction = to.clone().sub(from).normalize();
+    const distance = from.distanceTo(to);
+
+    const raycaster = new THREE.Raycaster(from, direction, 0, distance - 0.5); // Stop before player
+
+    // Check if ray hits any obstacle - use recursive true to check children
+    const meshes = obstacles.map(obj => obj.mesh);
+    const intersects = raycaster.intersectObjects(meshes, true);
+
+    // If there are intersections before reaching the player, no line of sight
+    return intersects.length === 0;
   }
 
   public update(
     delta: number,
     playerPos: THREE.Vector3,
     obstacles: Array<{ x: number; z: number; width: number; depth: number }>,
+    arenaObjects: Array<{ mesh: THREE.Mesh; box: THREE.Box3 }>,
     onEnemyShoot: (enemy: Enemy) => void
   ): void {
     const playerPos2D = playerPos.clone();
@@ -164,20 +257,53 @@ export class EnemyManager {
 
       moveDir.normalize();
 
-      // Move
+      // Calculate intended movement
+      let newX = enemy.mesh.position.x;
+      let newZ = enemy.mesh.position.z;
+      
       if (dist > 8) {
-        enemy.mesh.position.x += moveDir.x * enemy.speed * delta;
-        enemy.mesh.position.z += moveDir.z * enemy.speed * delta;
+        newX += moveDir.x * enemy.speed * delta;
+        newZ += moveDir.z * enemy.speed * delta;
       } else if (dist < 6) {
-        enemy.mesh.position.x -= dir.x * enemy.speed * 0.3 * delta;
-        enemy.mesh.position.z -= dir.z * enemy.speed * 0.3 * delta;
+        newX -= dir.x * enemy.speed * 0.3 * delta;
+        newZ -= dir.z * enemy.speed * 0.3 * delta;
       }
 
-      // Shoot
+      // Check collision with arena objects before moving
+      const enemyRadius = 0.5;
+      let canMove = true;
+      
+      for (const obj of arenaObjects) {
+        // Expand the bounding box slightly for the check
+        const expandedBox = obj.box.clone();
+        expandedBox.min.x -= enemyRadius;
+        expandedBox.min.z -= enemyRadius;
+        expandedBox.max.x += enemyRadius;
+        expandedBox.max.z += enemyRadius;
+        
+        // Check if new position would collide
+        if (newX >= expandedBox.min.x && newX <= expandedBox.max.x &&
+            newZ >= expandedBox.min.z && newZ <= expandedBox.max.z &&
+            enemy.mesh.position.y >= expandedBox.min.y && enemy.mesh.position.y <= expandedBox.max.y) {
+          canMove = false;
+          break;
+        }
+      }
+      
+      // Only move if no collision
+      if (canMove) {
+        enemy.mesh.position.x = newX;
+        enemy.mesh.position.z = newZ;
+      }
+
+      // Shoot only if has line of sight
       const now = performance.now();
       if (dist < 25 && now - enemy.lastShotTime > 1000 / enemy.fireRate) {
-        enemy.lastShotTime = now;
-        onEnemyShoot(enemy);
+        // Check line of sight before shooting
+        if (this.hasLineOfSight(enemy.mesh.position, playerPos, arenaObjects)) {
+          enemy.lastShotTime = now;
+          onEnemyShoot(enemy);
+        }
       }
 
       // Update appearance based on health
@@ -198,7 +324,45 @@ export class EnemyManager {
 
   public damageEnemy(enemy: Enemy, damage: number, isHeadshot: boolean): boolean {
     enemy.health -= isHeadshot ? damage * 2 : damage;
+    
+    // Play hurt sound if still alive, death sound if killed
+    if (enemy.health <= 0) {
+      this.playDeathSound(enemy);
+    } else {
+      this.playHurtSound(enemy);
+    }
+    
     return enemy.health <= 0;
+  }
+
+  private playHurtSound(enemy: Enemy): void {
+    const randomIndex = Math.floor(Math.random() * 3);
+    const hurtKey = `hurtFemale${randomIndex + 1}`;
+    if (this.audioBuffers[hurtKey]) {
+      const sound = enemy.hurtSounds[randomIndex];
+      if (sound.isPlaying) sound.stop();
+      sound.setBuffer(this.audioBuffers[hurtKey]);
+      sound.setVolume(0.5);
+      sound.play();
+    }
+  }
+
+  private playDeathSound(enemy: Enemy): void {
+    if (this.audioBuffers['deathFemale']) {
+      if (enemy.deathSound.isPlaying) enemy.deathSound.stop();
+      enemy.deathSound.setBuffer(this.audioBuffers['deathFemale']);
+      enemy.deathSound.setVolume(0.6);
+      enemy.deathSound.play();
+    }
+  }
+
+  public playShootSound(enemy: Enemy): void {
+    if (this.audioBuffers[enemy.weaponType]) {
+      if (enemy.shootSound.isPlaying) enemy.shootSound.stop();
+      enemy.shootSound.setBuffer(this.audioBuffers[enemy.weaponType]);
+      enemy.shootSound.setVolume(0.4);
+      enemy.shootSound.play();
+    }
   }
 
   public removeEnemy(enemy: Enemy): void {
@@ -226,14 +390,28 @@ export class EnemyManager {
     const shuffledSpawns = [...this.spawnPoints].sort(() => Math.random() - 0.5);
     let idx = 0;
 
-    for (let i = 0; i < 3 + wave; i++) {
-      this.createEnemy('grunt', shuffledSpawns[idx++ % 8].clone());
-    }
-    for (let i = 0; i < Math.floor(wave / 2); i++) {
-      this.createEnemy('soldier', shuffledSpawns[idx++ % 8].clone());
-    }
-    for (let i = 0; i < Math.floor(wave / 3); i++) {
-      this.createEnemy('heavy', shuffledSpawns[idx++ % 8].clone());
+    // Wave 1-2: Only grunts with pistols
+    // Wave 3+: Start introducing soldiers with AKs
+    // Wave 5+: Start introducing heavies with AWPs
+    
+    if (wave <= 2) {
+      // Early waves: only grunts
+      for (let i = 0; i < 3 + wave; i++) {
+        this.createEnemy('grunt', shuffledSpawns[idx++ % 8].clone());
+      }
+    } else {
+      // Later waves: mix of enemy types
+      for (let i = 0; i < 3 + wave; i++) {
+        this.createEnemy('grunt', shuffledSpawns[idx++ % 8].clone());
+      }
+      for (let i = 0; i < Math.floor(wave / 2); i++) {
+        this.createEnemy('soldier', shuffledSpawns[idx++ % 8].clone());
+      }
+      if (wave >= 5) {
+        for (let i = 0; i < Math.floor(wave / 3); i++) {
+          this.createEnemy('heavy', shuffledSpawns[idx++ % 8].clone());
+        }
+      }
     }
   }
 }

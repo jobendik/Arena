@@ -85,22 +85,25 @@ export class WeaponSystem {
 
     this.loadAllAudio();
 
-    // Create muzzle effects
+    // Create muzzle effects with initial weapon's position
+    const initialConfig = WEAPON_CONFIG[this.currentWeaponType];
+    const initialPos = initialConfig.muzzle.position;
+    
     this.muzzleFlash = new THREE.Mesh(
       new THREE.SphereGeometry(0.08, 8, 8),
       new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0 })
     );
-    this.muzzleFlash.position.set(0, 0.02, -0.6);
+    this.muzzleFlash.position.set(initialPos.x, initialPos.y, initialPos.z);
     this.weaponGroup.add(this.muzzleFlash);
 
     this.muzzleFlash2 = new THREE.Mesh(
       new THREE.BoxGeometry(0.15, 0.15, 0.05),
       new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0 })
     );
-    this.muzzleFlash2.position.set(0, 0.02, -0.62);
+    this.muzzleFlash2.position.set(initialPos.x, initialPos.y, initialPos.z - 0.02);
     this.weaponGroup.add(this.muzzleFlash2);
 
-    this.muzzleLight = new THREE.PointLight(0xffaa00, 0, 5);
+    this.muzzleLight = new THREE.PointLight(initialConfig.muzzle.lightColor, 0, initialConfig.muzzle.lightRange);
     this.muzzleLight.position.copy(this.muzzleFlash.position);
     this.weaponGroup.add(this.muzzleLight);
   }
@@ -200,10 +203,16 @@ export class WeaponSystem {
     // Add to camera
     (this.camera as any).add(this.weaponGroup);
     
-    // Update muzzle light color/range based on new weapon
+    // Update muzzle light color/range/position based on new weapon
     const config = WEAPON_CONFIG[this.currentWeaponType];
     this.muzzleLight.color.setHex(config.muzzle.lightColor);
     this.muzzleLight.distance = config.muzzle.lightRange;
+    
+    // Update muzzle flash positions for this weapon
+    const pos = config.muzzle.position;
+    this.muzzleFlash.position.set(pos.x, pos.y, pos.z);
+    this.muzzleFlash2.position.set(pos.x, pos.y, pos.z - 0.02);
+    this.muzzleLight.position.copy(this.muzzleFlash.position);
   }  public get currentMag(): number {
     return this.weapons[this.currentWeaponType].mag;
   }
@@ -678,17 +687,23 @@ export class WeaponSystem {
     const scale = cfg.flashScale.min + Math.random() * (cfg.flashScale.max - cfg.flashScale.min);
     this.muzzleFlash.scale.setScalar(scale);
     this.muzzleFlash.rotation.z = Math.random() * Math.PI * 2;
-    (this.muzzleFlash.material as THREE.MeshBasicMaterial).opacity = 1;
+    const flashMat = this.muzzleFlash.material as THREE.MeshBasicMaterial;
+    flashMat.color.setHex(cfg.lightColor);
+    flashMat.opacity = 1;
 
     this.muzzleFlash2.scale.setScalar(scale * 0.7);
     this.muzzleFlash2.rotation.z = Math.random() * Math.PI * 2;
-    (this.muzzleFlash2.material as THREE.MeshBasicMaterial).opacity = 0.8;
+    const flash2Mat = this.muzzleFlash2.material as THREE.MeshBasicMaterial;
+    flash2Mat.color.setHex(cfg.lightColor);
+    flash2Mat.opacity = 0.8;
 
+    this.muzzleLight.color.setHex(cfg.lightColor);
     this.muzzleLight.intensity = cfg.lightIntensity;
+    this.muzzleLight.distance = cfg.lightRange;
 
     setTimeout(() => {
-      (this.muzzleFlash.material as THREE.MeshBasicMaterial).opacity = 0;
-      (this.muzzleFlash2.material as THREE.MeshBasicMaterial).opacity = 0;
+      flashMat.opacity = 0;
+      flash2Mat.opacity = 0;
       this.muzzleLight.intensity = 0;
     }, cfg.flashDuration * 1000);
   }
