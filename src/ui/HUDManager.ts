@@ -80,11 +80,21 @@ export class HUDManager {
     this.powerupIndicator.style.opacity = show ? '1' : '0';
   }
 
-  public flashDamage(): void {
-    this.damageOverlay.style.opacity = '0.5';
+  public flashDamage(directionAngle?: number): void {
+    this.damageOverlay.style.opacity = '0.8';
+    
+    if (directionAngle !== undefined) {
+      // Rotate the damage indicator to point towards the source of damage
+      // The image points down by default, so we adjust accordingly
+      this.damageOverlay.style.transform = `translate(-50%, -50%) rotate(${directionAngle}deg)`;
+    } else {
+      // Generic damage (no specific direction)
+      this.damageOverlay.style.transform = 'translate(-50%, -50%)';
+    }
+    
     setTimeout(() => {
       this.damageOverlay.style.opacity = '0';
-    }, 100);
+    }, 200);
   }
 
   public showHitmarker(isKill: boolean): void {

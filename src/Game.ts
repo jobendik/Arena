@@ -531,7 +531,15 @@ export class Game {
 
     if (raycaster.ray.intersectsBox(playerBox)) {
       const isDead = this.player.takeDamage(enemy.damage);
-      this.hudManager.flashDamage();
+      
+      // Calculate angle from player to enemy for directional damage indicator
+      const dx = enemy.mesh.position.x - this.player.position.x;
+      const dz = enemy.mesh.position.z - this.player.position.z;
+      const angleToEnemy = Math.atan2(dx, dz) * (180 / Math.PI);
+      const playerYaw = this.player.rotation.y * (180 / Math.PI);
+      const relativeAngle = angleToEnemy - playerYaw;
+      
+      this.hudManager.flashDamage(relativeAngle);
       this.weaponSystem.cameraShake.intensity = Math.max(this.weaponSystem.cameraShake.intensity, 0.04);
 
       if (isDead) {
