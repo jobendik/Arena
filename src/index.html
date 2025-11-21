@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Blockline Arena - Enhanced Weapon System</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>">
+  </head>
+  <body>
+    <div id="game-container"></div>
+
+    <div id="hud">
+      <div id="health-label">HEALTH</div>
+      <div id="health-bar-container">
+        <div id="health-bar"></div>
+      </div>
+
+      <div id="armor-label">ARMOR</div>
+      <div id="armor-bar-container">
+        <div id="armor-bar"></div>
+      </div>
+
+      <div id="stamina-label">STAMINA</div>
+      <div id="stamina-bar-container">
+        <div id="stamina-bar"></div>
+      </div>
+
+      <div id="ammo-display">30 / 90</div>
+      <div id="reload-indicator">RELOADING...</div>
+
+      <div id="wave-display">WAVE 1</div>
+      <div id="score-label">SCORE</div>
+      <div id="score-display">0</div>
+      <div id="enemies-remaining">Enemies: 0</div>
+
+      <div id="powerup-indicator"></div>
+
+      <div id="crosshair">
+        <div class="crosshair-line" id="cross-top"></div>
+        <div class="crosshair-line" id="cross-bottom"></div>
+        <div class="crosshair-line" id="cross-left"></div>
+        <div class="crosshair-line" id="cross-right"></div>
+      </div>
+
+      <div id="hitmarker">
+        <svg width="20" height="20" viewBox="0 0 20 20">
+          <line x1="4" y1="4" x2="8" y2="8" stroke="white" stroke-width="2" />
+          <line x1="16" y1="4" x2="12" y2="8" stroke="white" stroke-width="2" />
+          <line x1="4" y1="16" x2="8" y2="12" stroke="white" stroke-width="2" />
+          <line x1="16" y1="16" x2="12" y2="12" stroke="white" stroke-width="2" />
+        </svg>
+      </div>
+
+      <div id="damage-overlay"></div>
+      <div id="low-health-overlay"></div>
+      <div id="message-display"></div>
+
+      <div id="pause-menu">
+        <h1>PAUSED</h1>
+        <button id="resume-btn">RESUME</button>
+        <button id="quit-btn">QUIT TO MENU</button>
+      </div>
+
+      <div id="game-over">
+        <h1>GAME OVER</h1>
+        <div class="stats">
+          <div>Waves Survived: <span id="final-waves">0</span></div>
+          <div>Enemies Killed: <span id="final-kills">0</span></div>
+          <div>Accuracy: <span id="final-accuracy">0</span>%</div>
+          <div>Time Survived: <span id="final-time">0:00</span></div>
+          <div>Final Score: <span id="final-score">0</span></div>
+        </div>
+        <button id="restart-btn">PLAY AGAIN</button>
+      </div>
+    </div>
+
+    <div id="start-screen">
+      <h1>Blockline Arena</h1>
+      <p>Wave-based survival shooter • Enhanced Weapon System</p>
+      <button id="start-btn">START GAME</button>
+      <div class="controls">
+        WASD - Move | SHIFT - Sprint | SPACE - Jump<br />
+        MOUSE - Aim | LEFT CLICK - Shoot | R - Reload
+      </div>
+    </div>
+  </body>
+</html>
