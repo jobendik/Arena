@@ -10,6 +10,8 @@ export class HUDManager {
   private powerupIndicator: HTMLElement;
   private lowHealthOverlay: HTMLElement;
   private damageOverlay: HTMLElement;
+  private sniperScope: HTMLElement;
+  private crosshair: HTMLElement;
 
   constructor() {
     this.healthBar = document.getElementById('health-bar')!;
@@ -23,6 +25,8 @@ export class HUDManager {
     this.powerupIndicator = document.getElementById('powerup-indicator')!;
     this.lowHealthOverlay = document.getElementById('low-health-overlay')!;
     this.damageOverlay = document.getElementById('damage-overlay')!;
+    this.sniperScope = document.getElementById('sniper-scope')!;
+    this.crosshair = document.getElementById('crosshair')!;
   }
 
   public updateHealth(health: number, maxHealth: number): void {
@@ -101,54 +105,58 @@ export class HUDManager {
     }, 100);
   }
 
-  public showMessage(text: string, duration = 2000): void {
-    const display = document.getElementById('message-display')!;
-    display.textContent = text;
-    display.style.opacity = '1';
-    setTimeout(() => {
-      display.style.opacity = '0';
-    }, duration);
+  public toggleScope(show: boolean): void {
+    this.sniperScope.style.opacity = show ? '1' : '0';
+    this.crosshair.style.opacity = show ? '0' : '1';
   }
 
-  public updateCrosshair(spread: number): void {
-    const size = spread * 500;
-    const gap = 4,
-      length = 8,
-      thickness = 2;
-
-    const set = (id: string, w: number, h: number, l: number, t: number) => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.style.width = `${w}px`;
-        el.style.height = `${h}px`;
-        el.style.left = `${l}px`;
-        el.style.top = `${t}px`;
-      }
-    };
-
-    set('cross-top', thickness, length, -thickness / 2, -size - length - gap);
-    set('cross-bottom', thickness, length, -thickness / 2, size + gap);
-    set('cross-left', length, thickness, -size - length - gap, -thickness / 2);
-    set('cross-right', length, thickness, size + gap, -thickness / 2);
+  public showMessage(message: string, duration: number = 2000): void {
+    const msgDisplay = document.getElementById('message-display');
+    if (msgDisplay) {
+      msgDisplay.textContent = message;
+      msgDisplay.style.opacity = '1';
+      setTimeout(() => {
+        msgDisplay.style.opacity = '0';
+      }, duration);
+    }
   }
 
-  public showGameOver(stats: {
-    wave: number;
-    kills: number;
-    accuracy: number;
-    time: string;
-    score: number;
-  }): void {
-    document.getElementById('final-waves')!.textContent = stats.wave.toString();
-    document.getElementById('final-kills')!.textContent = stats.kills.toString();
-    document.getElementById('final-accuracy')!.textContent = stats.accuracy.toString();
-    document.getElementById('final-time')!.textContent = stats.time;
-    document.getElementById('final-score')!.textContent = stats.score.toString();
-    (document.getElementById('game-over')! as HTMLElement).style.display = 'flex';
+  public showGameOver(stats: { wave: number; kills: number; accuracy: number; time: string; score: number }): void {
+    const gameOver = document.getElementById('game-over');
+    if (gameOver) {
+      gameOver.style.display = 'flex';
+      const finalScore = document.getElementById('final-score');
+      const finalWaves = document.getElementById('final-waves');
+      const finalKills = document.getElementById('final-kills');
+      const finalAccuracy = document.getElementById('final-accuracy');
+      const finalTime = document.getElementById('final-time');
+
+      if (finalScore) finalScore.textContent = stats.score.toString();
+      if (finalWaves) finalWaves.textContent = stats.wave.toString();
+      if (finalKills) finalKills.textContent = stats.kills.toString();
+      if (finalAccuracy) finalAccuracy.textContent = stats.accuracy.toString();
+      if (finalTime) finalTime.textContent = stats.time;
+    }
   }
 
   public hideGameOver(): void {
-    (document.getElementById('game-over')! as HTMLElement).style.display = 'none';
+    const gameOver = document.getElementById('game-over');
+    if (gameOver) {
+      gameOver.style.display = 'none';
+    }
+  }
+
+  public updateCrosshair(spread: number): void {
+    const offset = 10 + spread * 200; // Base offset + spread factor
+    const top = document.getElementById('cross-top');
+    const bottom = document.getElementById('cross-bottom');
+    const left = document.getElementById('cross-left');
+    const right = document.getElementById('cross-right');
+
+    if (top) top.style.transform = `translateY(-${offset}px)`;
+    if (bottom) bottom.style.transform = `translateY(${offset}px)`;
+    if (left) left.style.transform = `translateX(-${offset}px)`;
+    if (right) right.style.transform = `translateX(${offset}px)`;
   }
 
   public showPauseMenu(show: boolean): void {

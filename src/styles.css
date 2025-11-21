@@ -215,100 +215,71 @@ body {
   left: 50%;
   transform: translate(-50%, -50%);
   opacity: 0;
-  pointer-events: none;
-  transition: transform 0.05s;
-}
-
-#damage-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(ellipse at center, transparent 0%, rgba(255, 0, 0, 0.4) 100%);
-  opacity: 0;
   transition: opacity 0.1s;
   pointer-events: none;
 }
 
-#low-health-overlay {
+/* Sniper Scope */
+#sniper-scope {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: radial-gradient(ellipse at center, transparent 30%, rgba(255, 0, 0, 0.3) 100%);
-  opacity: 0;
   pointer-events: none;
+  opacity: 0;
+  /* Instant transition handled by JS or very fast CSS */
+  transition: opacity 0.05s ease-out;
+  z-index: 50;
 }
 
-#message-display {
+.scope-crosshair {
   position: absolute;
-  top: 30%;
+  background: #000;
+  top: 50%;
   left: 50%;
-  transform: translateX(-50%);
-  color: #fff;
-  font-size: 64px;
-  font-weight: bold;
-  text-shadow: 0 0 30px rgba(0, 255, 255, 1), 0 0 60px rgba(255, 0, 255, 0.8);
-  opacity: 0;
-  transition: opacity 0.3s, transform 0.3s;
-  background: linear-gradient(90deg, #00ffff, #ff00ff, #ffff00);
-  background-size: 300% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: messageGradient 2s linear infinite;
+  transform: translate(-50%, -50%);
 }
 
-@keyframes messageGradient {
-  0% {
-    background-position: 0% center;
-  }
-  100% {
-    background-position: 300% center;
-  }
+.scope-crosshair.horizontal {
+  width: 80vh; /* Relative to viewport height to stay in circle */
+  height: 2px;
 }
 
-#reload-indicator {
+.scope-crosshair.vertical {
+  width: 2px;
+  height: 80vh; /* Relative to viewport height to stay in circle */
+}
+
+.scope-vignette {
   position: absolute;
-  bottom: 80px;
-  right: 40px;
-  color: #f59e0b;
-  font-size: 14px;
-  font-weight: bold;
-  opacity: 0;
-  text-shadow: 0 0 10px rgba(245, 158, 11, 0.8);
-  animation: reloadPulse 0.5s ease-in-out infinite;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  /* Realistic scope look: clear center, slight darkening towards edge of lens, then hard black housing */
+  background: radial-gradient(
+    circle closest-side,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0) 85%,
+    rgba(0, 0, 0, 0.5) 90%,
+    #000 92%,
+    #000 100%
+  );
 }
 
-@keyframes reloadPulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-#enemies-remaining {
+/* Add a red dot for precision */
+#sniper-scope::after {
+  content: '';
   position: absolute;
-  top: 45px;
-  right: 20px;
-  color: #9ca3af;
-  font-size: 14px;
-}
-
-#powerup-indicator {
-  position: absolute;
-  bottom: 140px;
-  left: 20px;
-  color: #a855f7;
-  font-size: 14px;
-  font-weight: bold;
-  opacity: 0;
-  text-shadow: 0 0 10px rgba(168, 85, 247, 0.8);
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  background: red;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 4px red;
 }
 
 /* Pause Menu */

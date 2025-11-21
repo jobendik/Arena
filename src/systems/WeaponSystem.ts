@@ -14,6 +14,7 @@ export class WeaponSystem {
   private weapons: Record<WeaponType, { mag: number; reserve: number }>;
 
   public isReloading = false;
+  public isZoomed = false;
   public reloadTimer = 0;
   private lastShotTime = 0;
   public shotsFiredInBurst = 0;
@@ -135,8 +136,31 @@ export class WeaponSystem {
     this.switchWeapon(currentIndex);
   }
 
+  public setZoom(zoomed: boolean): boolean {
+    // Only allow zoom for sniper weapons
+    if (this.currentWeaponType !== WeaponType.Sniper && this.currentWeaponType !== WeaponType.AWP) {
+      return false;
+    }
+
+    if (this.isZoomed === zoomed) return false;
+
+    this.isZoomed = zoomed;
+    this.weaponGroup.visible = !zoomed; // Hide weapon when zoomed
+    
+    // Play zoom sound if zooming in
+    if (zoomed) {
+       // const config = WEAPON_CONFIG[this.currentWeaponType];
+       // Assuming we might have a zoom sound, otherwise skip
+       // if (config.audio.zoom) ... 
+    }
+
+    return true;
+  }
+
   private resetWeaponState(): void {
     this.isReloading = false;
+    this.isZoomed = false;
+    this.weaponGroup.visible = true;
     this.reloadTimer = 0;
     this.shotsFiredInBurst = 0;
     this.currentBloom = 0;

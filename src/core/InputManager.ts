@@ -16,6 +16,7 @@ export class InputManager {
   private onPauseCallback?: () => void;
   private onWeaponSelectCallback?: (index: number) => void;
   private onScrollCallback?: (delta: number) => void;
+  private onZoomCallback?: (isZoomed: boolean) => void;
 
   constructor(mouseSensitivity: number) {
     this.mouseSensitivity = mouseSensitivity;
@@ -73,10 +74,16 @@ export class InputManager {
 
   private handleMouseDown(e: MouseEvent): void {
     this.mouse.buttons[e.button] = true;
+    if (e.button === 2 && this.onZoomCallback) { // Right click
+      this.onZoomCallback(true);
+    }
   }
 
   private handleMouseUp(e: MouseEvent): void {
     this.mouse.buttons[e.button] = false;
+    if (e.button === 2 && this.onZoomCallback) { // Right click release
+      this.onZoomCallback(false);
+    }
   }
 
   public isKeyPressed(code: string): boolean {
@@ -119,5 +126,9 @@ export class InputManager {
 
   public setScrollCallback(callback: (delta: number) => void): void {
     this.onScrollCallback = callback;
+  }
+
+  public setZoomCallback(callback: (isZoomed: boolean) => void): void {
+    this.onZoomCallback = callback;
   }
 }

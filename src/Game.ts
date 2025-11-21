@@ -216,6 +216,19 @@ export class Game {
       this.weaponSystem.scrollWeapon(delta);
     });
 
+    this.inputManager.setZoomCallback((isZoomed) => {
+      const changed = this.weaponSystem.setZoom(isZoomed);
+      if (changed) {
+        this.hudManager.toggleScope(isZoomed);
+        // Instant FOV change for responsiveness
+        if (isZoomed) {
+          this.player.currentFOV = 40; // Zoomed FOV
+        } else {
+          this.player.currentFOV = CAMERA_CONFIG.baseFOV;
+        }
+      }
+    });
+
     window.addEventListener('resize', () => this.onWindowResize());
     
     document.addEventListener('click', () => {
@@ -543,11 +556,25 @@ export class Game {
       this.weaponSystem.microShake.y +
       this.weaponSystem.cameraShake.y;
 
-    // FOV
-    const baseFOV = this.player.isSprinting ? CAMERA_CONFIG.sprintFOV : CAMERA_CONFIG.baseFOV;
-    const targetFOV = baseFOV + this.weaponSystem.fovPunch;
+    // Camera FOV
+    let targetFOV = CAMERA_CONFIG.baseFOV;
+    if (this.weaponSystem.isZoomed) {
+      targetFOV = 40;
+    } else if (this.player.isSprinting) {
+      targetFOV = CAMERA_CONFIG.sprintFOV;
+    } else if (this.player.isJumping) {
+      targetFOV = CAMERA_CONFIG.jumpFOV;
+    } else if (!this.player.onGround) {
+      targetFOV = CAMERA_CONFIG.landFOV; // Actually landFOV is usually for landing impact, but let's keep existing logic structure
+    }
+
+    targetFOV += this.weaponSystem.fovPunch;
+
+    // If zoomed, we want instant or very fast transition
+    const lerpSpeed = this.weaponSystem.isZoomed ? 50 : CAMERA_CONFIG.fovLerpSpeed;
+    
     this.player.currentFOV +=
-      (targetFOV - this.player.currentFOV) * CAMERA_CONFIG.fovLerpSpeed * delta;
+      (targetFOV - this.player.currentFOV) * lerpSpeed * delta;
     this.camera.fov = this.player.currentFOV;
     this.camera.updateProjectionMatrix();
 
