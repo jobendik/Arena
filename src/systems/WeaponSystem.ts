@@ -49,6 +49,10 @@ export class WeaponSystem {
   private audioBuffers: Record<string, AudioBuffer> = {};
   private fireSound: THREE.Audio;
   private reloadSound: THREE.Audio;
+  private tailSound: THREE.Audio;
+  private loadSound: THREE.Audio;
+  private cockSound: THREE.Audio;
+  private zoomSound: THREE.Audio;
 
   // Weapon model
   private weaponGroup: THREE.Group;
@@ -74,6 +78,10 @@ export class WeaponSystem {
     // Initialize Audio
     this.fireSound = new THREE.Audio(listener);
     this.reloadSound = new THREE.Audio(listener);
+    this.tailSound = new THREE.Audio(listener);
+    this.loadSound = new THREE.Audio(listener);
+    this.cockSound = new THREE.Audio(listener);
+    this.zoomSound = new THREE.Audio(listener);
 
     this.loadAllAudio();
 
@@ -105,9 +113,16 @@ export class WeaponSystem {
       Object.values(config.audio).forEach((path) => {
         if (path && !loadedPaths.has(path)) {
           loadedPaths.add(path);
-          audioLoader.load(path, (buffer) => {
-            this.audioBuffers[path] = buffer;
-          });
+          audioLoader.load(
+            path,
+            (buffer) => {
+              this.audioBuffers[path] = buffer;
+            },
+            undefined,
+            (error) => {
+              console.warn(`Failed to load audio: ${path}`, error);
+            }
+          );
         }
       });
     });
@@ -147,11 +162,13 @@ export class WeaponSystem {
     this.isZoomed = zoomed;
     this.weaponGroup.visible = !zoomed; // Hide weapon when zoomed
     
-    // Play zoom sound if zooming in
-    if (zoomed) {
-       // const config = WEAPON_CONFIG[this.currentWeaponType];
-       // Assuming we might have a zoom sound, otherwise skip
-       // if (config.audio.zoom) ... 
+    // Play zoom sound
+    const config = WEAPON_CONFIG[this.currentWeaponType];
+    if (config.audio.zoom && this.audioBuffers[config.audio.zoom]) {
+      if (this.zoomSound.isPlaying) this.zoomSound.stop();
+      this.zoomSound.setBuffer(this.audioBuffers[config.audio.zoom]);
+      this.zoomSound.setVolume(0.4);
+      this.zoomSound.play();
     }
 
     return true;
@@ -558,6 +575,14 @@ export class WeaponSystem {
       this.fireSound.play();
     }
 
+    // Play tail sound if available (for echo/reverb effect)
+    if (config.audio.tail && this.audioBuffers[config.audio.tail]) {
+      if (this.tailSound.isPlaying) this.tailSound.stop();
+      this.tailSound.setBuffer(this.audioBuffers[config.audio.tail]);
+      this.tailSound.setVolume(0.3);
+      this.tailSound.play();
+    }
+
     // Trigger effects
     this.triggerMuzzleFlash();
     this.triggerScreenEffects();
@@ -618,6 +643,12 @@ export class WeaponSystem {
     );
 
     return dir;
+  }
+
+  public getCurrentSpread(): number {
+    const config = WEAPON_CONFIG[this.currentWeaponType];
+    // Return base weapon spread + current bloom (accumulated from firing)
+    return config.spread.base + this.currentBloom;
   }
 
   private applyRecoil(): void {
@@ -723,6 +754,28 @@ export class WeaponSystem {
       this.reloadSound.setBuffer(this.audioBuffers[soundPath]);
       this.reloadSound.setVolume(0.5);
       this.reloadSound.play();
+    }
+
+    // Play load sound after a delay (mid-reload for shotgun/sniper)
+    if (config.audio.load && this.audioBuffers[config.audio.load]) {
+      const loadPath = config.audio.load;
+      setTimeout(() => {
+        if (this.loadSound.isPlaying) this.loadSound.stop();
+        this.loadSound.setBuffer(this.audioBuffers[loadPath]);
+        this.loadSound.setVolume(0.5);
+        this.loadSound.play();
+      }, (config.reloadTime * 0.5) * 1000);
+    }
+
+    // Play cock sound near the end (for shotgun)
+    if (config.audio.cock && this.audioBuffers[config.audio.cock]) {
+      const cockPath = config.audio.cock;
+      setTimeout(() => {
+        if (this.cockSound.isPlaying) this.cockSound.stop();
+        this.cockSound.setBuffer(this.audioBuffers[cockPath]);
+        this.cockSound.setVolume(0.5);
+        this.cockSound.play();
+      }, (config.reloadTime * 0.8) * 1000);
     }
 
     setTimeout(() => {

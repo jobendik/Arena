@@ -17,8 +17,8 @@ export const PLAYER_CONFIG: PlayerConfig = {
   coyoteTime: 0.15,
   jumpCutMultiplier: 0.5,
   stepHeight: 0.5,
-  staminaDrain: 40,
-  staminaRegen: 18,
+  staminaDrain: 20,
+  staminaRegen: 15,
 };
 
 export const CAMERA_CONFIG: CameraConfig = {
@@ -110,9 +110,9 @@ export const WEAPON_CONFIG: WeaponConfig = {
       kickRotX: 0.1,
     },
     spread: {
-      base: 0.02,
-      max: 0.1,
-      increasePerShot: 0.01,
+      base: 0.0015,
+      max: 0.008,
+      increasePerShot: 0.0008,
       recoveryRate: 3,
     },
     ...DEFAULT_VISUALS
@@ -139,9 +139,9 @@ export const WEAPON_CONFIG: WeaponConfig = {
       kickRotX: 0.3,
     },
     spread: {
-      base: 0.001,
-      max: 0.5,
-      increasePerShot: 0.5,
+      base: 0.0005,
+      max: 0.006,
+      increasePerShot: 0.005,
       recoveryRate: 1,
     },
     ...DEFAULT_VISUALS,
@@ -170,9 +170,9 @@ export const WEAPON_CONFIG: WeaponConfig = {
       kickRotX: 0.15,
     },
     spread: {
-      base: 0.05,
-      max: 0.2,
-      increasePerShot: 0.005,
+      base: 0.0025,
+      max: 0.012,
+      increasePerShot: 0.0004,
       recoveryRate: 2,
     },
     ...DEFAULT_VISUALS,
@@ -200,9 +200,9 @@ export const WEAPON_CONFIG: WeaponConfig = {
       kickRotX: 0.08,
     },
     spread: {
-      base: 0.01,
-      max: 0.08,
-      increasePerShot: 0.008,
+      base: 0.0012,
+      max: 0.007,
+      increasePerShot: 0.0007,
       recoveryRate: 4,
     },
     ...DEFAULT_VISUALS
@@ -229,9 +229,9 @@ export const WEAPON_CONFIG: WeaponConfig = {
       kickRotX: 0.05,
     },
     spread: {
-      base: 0.01,
-      max: 0.05,
-      increasePerShot: 0.02,
+      base: 0.001,
+      max: 0.005,
+      increasePerShot: 0.0015,
       recoveryRate: 5,
     },
     ...DEFAULT_VISUALS,
@@ -260,9 +260,9 @@ export const WEAPON_CONFIG: WeaponConfig = {
       kickRotX: 0.12,
     },
     spread: {
-      base: 0.015,
-      max: 0.09,
-      increasePerShot: 0.015,
+      base: 0.0018,
+      max: 0.009,
+      increasePerShot: 0.001,
       recoveryRate: 3,
     },
     ...DEFAULT_VISUALS
@@ -290,9 +290,9 @@ export const WEAPON_CONFIG: WeaponConfig = {
       kickRotX: 0.4,
     },
     spread: {
-      base: 0.1,
-      max: 0.2,
-      increasePerShot: 0.1,
+      base: 0.008,
+      max: 0.015,
+      increasePerShot: 0.007,
       recoveryRate: 2,
     },
     ...DEFAULT_VISUALS,
@@ -311,6 +311,7 @@ export const WEAPON_CONFIG: WeaponConfig = {
       fire: BASE_AUDIO_PATH + 'Sniper-Fire.mp3_e5df2297.mp3',
       reload: BASE_AUDIO_PATH + 'Sniper-Reload.mp3_dbe31ae3.mp3',
       load: BASE_AUDIO_PATH + 'Sniper-Load.mp3_2ff42cc3.mp3',
+      zoom: BASE_AUDIO_PATH + 'Sniper-Zoom.mp3_4e79b9b9.mp3',
     },
     recoil: {
       pitchAmount: 0.25,
@@ -322,9 +323,9 @@ export const WEAPON_CONFIG: WeaponConfig = {
       kickRotX: 0.35,
     },
     spread: {
-      base: 0.001,
-      max: 0.4,
-      increasePerShot: 0.4,
+      base: 0.0003,
+      max: 0.005,
+      increasePerShot: 0.004,
       recoveryRate: 1,
     },
     ...DEFAULT_VISUALS,
@@ -355,9 +356,9 @@ export const WEAPON_CONFIG: WeaponConfig = {
       kickRotX: 0.07,
     },
     spread: {
-      base: 0.04,
-      max: 0.15,
-      increasePerShot: 0.01,
+      base: 0.003,
+      max: 0.011,
+      increasePerShot: 0.0006,
       recoveryRate: 4,
     },
     ...DEFAULT_VISUALS,

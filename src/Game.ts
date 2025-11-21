@@ -429,7 +429,14 @@ export class Game {
     });
 
     // Update HUD
-    this.hudManager.updateCrosshair(0.008 + this.weaponSystem.currentBloom);
+    const horizSpeed = Math.sqrt(this.player.velocity.x ** 2 + this.player.velocity.z ** 2);
+    const isMoving = horizSpeed > 0.5;
+    this.hudManager.updateCrosshair(
+      this.weaponSystem.getCurrentSpread(),
+      isMoving,
+      this.player.isSprinting,
+      !this.player.onGround
+    );
     if (this.player.powerup) {
       this.hudManager.showPowerup(
         `${this.player.powerup.toUpperCase()} (${Math.ceil(this.player.powerupTimer)}s)`,
@@ -494,6 +501,7 @@ export class Game {
         }
 
         this.hudManager.showHitmarker(killed);
+        this.hudManager.showHitFeedback(killed, hitHead);
       }
     });
 

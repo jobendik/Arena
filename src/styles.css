@@ -202,11 +202,78 @@ body {
   left: 50%;
   transform: translate(-50%, -50%);
   pointer-events: none;
+  transition: opacity 0.1s;
+}
+
+#crosshair-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 2px;
+  background: #00ff00;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 4px rgba(0, 255, 0, 0.8), 0 0 1px rgba(0, 0, 0, 0.8);
+  transition: background 0.05s, transform 0.05s;
 }
 
 .crosshair-line {
   position: absolute;
-  background: #fff;
+  background: #00ff00;
+  box-shadow: 0 0 4px rgba(0, 255, 0, 0.6), 0 0 1px rgba(0, 0, 0, 0.8);
+  transition: transform 0.1s ease-out, background 0.05s;
+}
+
+#cross-top, #cross-bottom {
+  width: 2px;
+  height: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+#cross-left, #cross-right {
+  height: 2px;
+  width: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+#cross-top {
+  bottom: 50%;
+}
+
+#cross-bottom {
+  top: 50%;
+}
+
+#cross-left {
+  right: 50%;
+}
+
+#cross-right {
+  left: 50%;
+}
+
+/* Crosshair hit feedback states */
+#crosshair.hit #crosshair-dot,
+#crosshair.hit .crosshair-line {
+  background: #ffff00;
+  box-shadow: 0 0 6px rgba(255, 255, 0, 0.9), 0 0 1px rgba(0, 0, 0, 0.8);
+}
+
+#crosshair.headshot #crosshair-dot,
+#crosshair.headshot .crosshair-line {
+  background: #ff4444;
+  box-shadow: 0 0 8px rgba(255, 68, 68, 1), 0 0 1px rgba(0, 0, 0, 0.8);
+}
+
+#crosshair.kill #crosshair-dot {
+  transform: translate(-50%, -50%) scale(1.5);
+}
+
+#crosshair.kill .crosshair-line {
+  background: #ff0000;
+  box-shadow: 0 0 10px rgba(255, 0, 0, 1), 0 0 2px rgba(0, 0, 0, 0.8);
 }
 
 #hitmarker {
@@ -438,26 +505,16 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 200px;
-  height: 200px;
+  width: 300px;
+  height: 300px;
   transform: translate(-50%, -50%);
+  background-image: url('/assets/images/Damage-Indictator.png_78ece5da.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.1s;
-}
-
-#damage-overlay::before {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 40px solid transparent;
-  border-right: 40px solid transparent;
-  border-bottom: 80px solid rgba(255, 0, 0, 0.8);
-  filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.6));
+  transition: opacity 0.15s ease-out;
 }
 
 /* Low Health Overlay */

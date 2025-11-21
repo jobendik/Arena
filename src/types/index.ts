@@ -65,6 +65,7 @@ export interface WeaponStats {
     load?: string;
     cock?: string;
     tail?: string;
+    zoom?: string;
   };
   recoil: {
     pitchAmount: number;

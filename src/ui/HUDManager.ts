@@ -12,6 +12,10 @@ export class HUDManager {
   private damageOverlay: HTMLElement;
   private sniperScope: HTMLElement;
   private crosshair: HTMLElement;
+  private crosshairTop: HTMLElement;
+  private crosshairBottom: HTMLElement;
+  private crosshairLeft: HTMLElement;
+  private crosshairRight: HTMLElement;
 
   constructor() {
     this.healthBar = document.getElementById('health-bar')!;
@@ -27,6 +31,10 @@ export class HUDManager {
     this.damageOverlay = document.getElementById('damage-overlay')!;
     this.sniperScope = document.getElementById('sniper-scope')!;
     this.crosshair = document.getElementById('crosshair')!;
+    this.crosshairTop = document.getElementById('cross-top')!;
+    this.crosshairBottom = document.getElementById('cross-bottom')!;
+    this.crosshairLeft = document.getElementById('cross-left')!;
+    this.crosshairRight = document.getElementById('cross-right')!;
   }
 
   public updateHealth(health: number, maxHealth: number): void {
@@ -156,17 +164,48 @@ export class HUDManager {
     }
   }
 
-  public updateCrosshair(spread: number): void {
-    const offset = 10 + spread * 200; // Base offset + spread factor
-    const top = document.getElementById('cross-top');
-    const bottom = document.getElementById('cross-bottom');
-    const left = document.getElementById('cross-left');
-    const right = document.getElementById('cross-right');
+  public updateCrosshair(spread: number, isMoving: boolean = false, isSprinting: boolean = false, isAirborne: boolean = false): void {
+    // Map spread directly to crosshair gap - AAA FPS standard
+    // Base gap: 8px for tight feel, spread multiplier: 10000 for proper visibility
+    // CS:GO/Valorant style: minimal base, reactive to shooting
+    let gap = 8 + spread * 10000;
 
-    if (top) top.style.transform = `translateY(-${offset}px)`;
-    if (bottom) bottom.style.transform = `translateY(${offset}px)`;
-    if (left) left.style.transform = `translateX(-${offset}px)`;
-    if (right) right.style.transform = `translateX(${offset}px)`;
+    // Movement penalties (visual representation of accuracy loss)
+    if (isAirborne) {
+      gap *= 1.8; // Significant penalty when jumping
+    } else if (isSprinting) {
+      gap *= 1.4; // Running reduces accuracy
+    } else if (isMoving) {
+      gap *= 1.15; // Walking slightly reduces accuracy
+    }
+
+    // Clamp maximum gap to prevent screen-filling crosshair (AAA games cap at ~50-60px)
+    gap = Math.min(gap, 55);
+
+    // Apply the gap to each line
+    this.crosshairTop.style.transform = `translateX(-50%) translateY(-${gap}px)`;
+    this.crosshairBottom.style.transform = `translateX(-50%) translateY(${gap}px)`;
+    this.crosshairLeft.style.transform = `translateY(-50%) translateX(-${gap}px)`;
+    this.crosshairRight.style.transform = `translateY(-50%) translateX(${gap}px)`;
+  }
+
+  public showHitFeedback(isKill: boolean, isHeadshot: boolean): void {
+    // Remove any existing feedback classes
+    this.crosshair.classList.remove('hit', 'headshot', 'kill');
+
+    // Add appropriate feedback class
+    if (isKill) {
+      this.crosshair.classList.add('kill');
+    } else if (isHeadshot) {
+      this.crosshair.classList.add('headshot');
+    } else {
+      this.crosshair.classList.add('hit');
+    }
+
+    // Remove the class after animation
+    setTimeout(() => {
+      this.crosshair.classList.remove('hit', 'headshot', 'kill');
+    }, 100);
   }
 
   public showPauseMenu(show: boolean): void {
