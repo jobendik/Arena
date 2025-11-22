@@ -56,10 +56,11 @@ export class WeaponSystem {
 
   // Weapon model
   private weaponGroup: THREE.Group;
-  private muzzleFlash: THREE.Mesh;
-  private muzzleFlash2: THREE.Mesh;
+  private muzzleFlash: THREE.Sprite;
+  private muzzleFlash2: THREE.Sprite;
   private muzzleLight: THREE.PointLight;
   private camera: THREE.Camera;
+  private muzzleFlashTexture?: THREE.Texture;
 
   constructor(camera: THREE.Camera, listener: THREE.AudioListener) {
     this.camera = camera;
@@ -85,21 +86,41 @@ export class WeaponSystem {
 
     this.loadAllAudio();
 
+    // Load muzzle flash texture
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(
+      'assets/images/muzzle.png_19188667.png',
+      (texture) => {
+        this.muzzleFlashTexture = texture;
+      },
+      undefined,
+      (err) => console.warn('Failed to load muzzle flash texture:', err)
+    );
+
     // Create muzzle effects with initial weapon's position
     const initialConfig = WEAPON_CONFIG[this.currentWeaponType];
     const initialPos = initialConfig.muzzle.position;
     
-    this.muzzleFlash = new THREE.Mesh(
-      new THREE.SphereGeometry(0.08, 8, 8),
-      new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0 })
-    );
+    // Use sprite for muzzle flash with texture - larger and more visible
+    const spriteMat = new THREE.SpriteMaterial({
+      color: 0xffaa00,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+    });
+    this.muzzleFlash = new THREE.Sprite(spriteMat);
+    this.muzzleFlash.scale.set(0.6, 0.6, 1); // Doubled size for visibility
     this.muzzleFlash.position.set(initialPos.x, initialPos.y, initialPos.z);
     this.weaponGroup.add(this.muzzleFlash);
 
-    this.muzzleFlash2 = new THREE.Mesh(
-      new THREE.BoxGeometry(0.15, 0.15, 0.05),
-      new THREE.MeshBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0 })
-    );
+    const spriteMat2 = new THREE.SpriteMaterial({
+      color: 0xffff00,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+    });
+    this.muzzleFlash2 = new THREE.Sprite(spriteMat2);
+    this.muzzleFlash2.scale.set(0.5, 0.5, 1); // Doubled for visibility
     this.muzzleFlash2.position.set(initialPos.x, initialPos.y, initialPos.z - 0.02);
     this.weaponGroup.add(this.muzzleFlash2);
 
@@ -553,7 +574,7 @@ export class WeaponSystem {
     playerOnGround: boolean,
     playerIsSprinting: boolean,
     playerVelocity: THREE.Vector3
-  ): { direction: THREE.Vector3; shotFired: boolean } {
+  ): { direction: THREE.Vector3; shotFired: boolean; directions?: THREE.Vector3[] } {
     if (!this.canShoot(null)) {
       return { direction: new THREE.Vector3(), shotFired: false };
     }
@@ -569,8 +590,14 @@ export class WeaponSystem {
     this.timeSinceLastShot = 0;
     this.currentMag--;
 
-    // Calculate shot direction with spread and pattern
-    const dir = this.calculateShotDirection(camera, playerOnGround, playerIsSprinting, playerVelocity);
+    // Calculate shot direction(s) - shotguns fire multiple pellets
+    const pelletCount = config.pelletCount || 1;
+    const directions: THREE.Vector3[] = [];
+    
+    for (let i = 0; i < pelletCount; i++) {
+      const dir = this.calculateShotDirection(camera, playerOnGround, playerIsSprinting, playerVelocity);
+      directions.push(dir);
+    }
 
     // Apply recoil
     this.applyRecoil();
@@ -599,7 +626,11 @@ export class WeaponSystem {
 
     this.shotsFiredInBurst++;
 
-    return { direction: dir, shotFired: true };
+    return { 
+      direction: directions[0], 
+      shotFired: true,
+      directions: pelletCount > 1 ? directions : undefined 
+    };
   }
 
   private calculateShotDirection(
@@ -684,18 +715,30 @@ export class WeaponSystem {
     const config = WEAPON_CONFIG[this.currentWeaponType];
     const cfg = config.muzzle;
 
+    // Enhanced sprite-based muzzle flash - much larger and more visible
     const scale = cfg.flashScale.min + Math.random() * (cfg.flashScale.max - cfg.flashScale.min);
-    this.muzzleFlash.scale.setScalar(scale);
-    this.muzzleFlash.rotation.z = Math.random() * Math.PI * 2;
-    const flashMat = this.muzzleFlash.material as THREE.MeshBasicMaterial;
+    this.muzzleFlash.scale.set(scale * 1.0, scale * 1.0, 1); // Doubled from 0.5
+    const flashMat = this.muzzleFlash.material as THREE.SpriteMaterial;
+    
+    // Update texture if loaded
+    if (this.muzzleFlashTexture && !flashMat.map) {
+      flashMat.map = this.muzzleFlashTexture;
+      flashMat.needsUpdate = true;
+    }
+    
     flashMat.color.setHex(cfg.lightColor);
-    flashMat.opacity = 1;
+    flashMat.opacity = 1.2; // Exaggerated brightness
+    flashMat.rotation = Math.random() * Math.PI * 2;
 
-    this.muzzleFlash2.scale.setScalar(scale * 0.7);
-    this.muzzleFlash2.rotation.z = Math.random() * Math.PI * 2;
-    const flash2Mat = this.muzzleFlash2.material as THREE.MeshBasicMaterial;
+    this.muzzleFlash2.scale.set(scale * 0.8, scale * 0.8, 1); // Doubled from 0.4
+    const flash2Mat = this.muzzleFlash2.material as THREE.SpriteMaterial;
+    if (this.muzzleFlashTexture && !flash2Mat.map) {
+      flash2Mat.map = this.muzzleFlashTexture;
+      flash2Mat.needsUpdate = true;
+    }
     flash2Mat.color.setHex(cfg.lightColor);
-    flash2Mat.opacity = 0.8;
+    flash2Mat.opacity = 0.9;
+    flash2Mat.rotation = Math.random() * Math.PI * 2 + Math.PI / 4; // Offset rotation
 
     this.muzzleLight.color.setHex(cfg.lightColor);
     this.muzzleLight.intensity = cfg.lightIntensity;

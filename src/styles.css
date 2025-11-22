@@ -665,6 +665,7 @@ body {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease-out;
+  filter: none;
 }
 
 /* ===== DAMAGE VIGNETTE SYSTEM (3 LAYERS) ===== */

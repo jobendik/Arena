@@ -6,7 +6,7 @@ export const PLAYER_CONFIG: PlayerConfig = {
   maxStamina: 100,
   height: 1.7,
   walkSpeed: 8,
-  sprintSpeed: 12,
+  sprintSpeed: 13,
   jumpForce: 12,
   gravity: 35,
   groundAccel: 50,
@@ -18,7 +18,7 @@ export const PLAYER_CONFIG: PlayerConfig = {
   jumpCutMultiplier: 0.5,
   stepHeight: 0.5,
   staminaDrain: 20,
-  staminaRegen: 15,
+  staminaRegen: 30,
 };
 
 export const CAMERA_CONFIG: CameraConfig = {
@@ -327,12 +327,13 @@ export const WEAPON_CONFIG: WeaponConfig = {
   },
   [WeaponType.Shotgun]: {
     name: 'Shotgun',
-    damage: 15,
+    damage: 15, // Per pellet - 8 pellets = 120 damage at close range
     fireRate: 1.5,
     magSize: 8,
     reserveAmmo: 32,
     reloadTime: 3.0,
     automatic: false,
+    pelletCount: 8, // Fires 8 pellets in a spread pattern
     audio: {
       fire: BASE_AUDIO_PATH + 'Shotgun-Fire.mp3_c4d738ce.mp3',
       reload: BASE_AUDIO_PATH + 'Shotgun-Load.mp3_662a7e0b.mp3',
@@ -348,9 +349,9 @@ export const WEAPON_CONFIG: WeaponConfig = {
       kickRotX: 0.4,
     },
     spread: {
-      base: 0.008,
-      max: 0.015,
-      increasePerShot: 0.007,
+      base: 0.035, // Wide spread for shotgun pattern
+      max: 0.055,
+      increasePerShot: 0.012,
       recoveryRate: 2,
     },
     ...DEFAULT_VISUALS,

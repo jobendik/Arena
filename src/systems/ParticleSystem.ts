@@ -1,20 +1,49 @@
 import * as THREE from 'three';
 
 export interface Particle {
-  mesh: THREE.Mesh;
+  mesh: THREE.Mesh | THREE.Sprite;
   velocity: THREE.Vector3;
   lifetime: number;
   maxLifetime: number;
+  initialScale?: number;
 }
 
 export class ParticleSystem {
   private particles: Particle[] = [];
   private scene: THREE.Scene;
+  private hitImpactTexture?: THREE.Texture;
+  private hitSpriteLowTexture?: THREE.Texture;
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
+    this.loadTextures();
   }
 
+  private loadTextures(): void {
+    const textureLoader = new THREE.TextureLoader();
+    
+    textureLoader.load(
+      'assets/images/Hit-Impact.png_3363db53.png',
+      (texture) => {
+        this.hitImpactTexture = texture;
+      },
+      undefined,
+      (err) => console.warn('Failed to load hit impact texture:', err)
+    );
+
+    textureLoader.load(
+      'assets/images/Hit-Sprite-Low.png_bf709f5e.png',
+      (texture) => {
+        this.hitSpriteLowTexture = texture;
+      },
+      undefined,
+      (err) => console.warn('Failed to load hit sprite texture:', err)
+    );
+  }
+
+  /**
+   * Spawn basic particle burst - simple geometric particles
+   */
   public spawn(position: THREE.Vector3, color: number, count: number): void {
     for (let i = 0; i < count; i++) {
       const particle = new THREE.Mesh(
@@ -39,6 +68,74 @@ export class ParticleSystem {
     }
   }
 
+  /**
+   * Spawn explosive sprite-based impact effect
+   * Bright, satisfying bloom that makes every shot feel significant
+   */
+  public spawnImpactEffect(position: THREE.Vector3, isKill: boolean = false): void {
+    const texture = isKill ? this.hitImpactTexture : this.hitSpriteLowTexture;
+    if (!texture) {
+      // Fallback to basic particles
+      this.spawn(position, isKill ? 0xffff00 : 0xff8800, isKill ? 15 : 8);
+      return;
+    }
+
+    // Create multiple overlapping sprites for intense bloom effect
+    const spriteCount = isKill ? 3 : 2;
+    for (let i = 0; i < spriteCount; i++) {
+      const spriteMaterial = new THREE.SpriteMaterial({
+        map: texture,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 1,
+        color: isKill ? 0xffff00 : 0xff4400, // Yellow for kills, orange for hits
+      });
+
+      const sprite = new THREE.Sprite(spriteMaterial);
+      const baseScale = isKill ? 0.8 : 0.5;
+      const scale = baseScale + i * 0.2; // Layered effect
+      sprite.scale.set(scale, scale, scale);
+      sprite.position.copy(position);
+
+      this.scene.add(sprite);
+      this.particles.push({
+        mesh: sprite,
+        velocity: new THREE.Vector3(0, 0, 0),
+        lifetime: 0,
+        maxLifetime: isKill ? 0.3 : 0.2, // Brief but intense
+        initialScale: scale,
+      });
+    }
+  }
+
+  /**
+   * Spawn surface impact particles - debris flying from surface
+   */
+  public spawnSurfaceImpact(position: THREE.Vector3, normal: THREE.Vector3, color: number): void {
+    const particleCount = 8;
+    for (let i = 0; i < particleCount; i++) {
+      const particle = new THREE.Mesh(
+        new THREE.BoxGeometry(0.03, 0.03, 0.03),
+        new THREE.MeshBasicMaterial({ color })
+      );
+      particle.position.copy(position);
+
+      // Particles fly away from surface along normal with some spread
+      const velocity = normal.clone().multiplyScalar(3 + Math.random() * 2);
+      velocity.x += (Math.random() - 0.5) * 2;
+      velocity.y += (Math.random() - 0.5) * 2;
+      velocity.z += (Math.random() - 0.5) * 2;
+
+      this.scene.add(particle);
+      this.particles.push({
+        mesh: particle,
+        velocity,
+        lifetime: 0,
+        maxLifetime: 0.4 + Math.random() * 0.3,
+      });
+    }
+  }
+
   public update(delta: number): void {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
@@ -46,12 +143,32 @@ export class ParticleSystem {
 
       if (p.lifetime >= p.maxLifetime) {
         this.scene.remove(p.mesh);
+        if (p.mesh instanceof THREE.Sprite) {
+          (p.mesh.material as THREE.SpriteMaterial).dispose();
+        }
         this.particles.splice(i, 1);
       } else {
-        p.velocity.y -= 15 * delta;
-        p.mesh.position.add(p.velocity.clone().multiplyScalar(delta));
-        (p.mesh.material as THREE.MeshBasicMaterial).opacity =
-          1 - p.lifetime / p.maxLifetime;
+        // Apply physics only to non-sprite particles
+        if (!(p.mesh instanceof THREE.Sprite)) {
+          p.velocity.y -= 15 * delta;
+          p.mesh.position.add(p.velocity.clone().multiplyScalar(delta));
+        }
+
+        // Fade out
+        const fadeProgress = p.lifetime / p.maxLifetime;
+        if (p.mesh instanceof THREE.Sprite) {
+          // Sprites: quick expand then fade
+          const spriteMat = p.mesh.material as THREE.SpriteMaterial;
+          spriteMat.opacity = 1 - fadeProgress;
+          
+          // Expand effect for impact
+          if (p.initialScale) {
+            const expandScale = p.initialScale * (1 + fadeProgress * 0.5);
+            p.mesh.scale.set(expandScale, expandScale, expandScale);
+          }
+        } else {
+          (p.mesh.material as THREE.MeshBasicMaterial).opacity = 1 - fadeProgress;
+        }
       }
     }
   }

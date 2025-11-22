@@ -23,6 +23,7 @@ export class HUDManager {
   private vignetteCritical: HTMLElement;
   private impactFlashTimeout: number | null = null;
   private damagePulseTimeout: number | null = null;
+  private damageOverlayTimeout: number | null = null;
 
   constructor() {
     this.healthBar = document.getElementById('health-bar')!;
@@ -131,20 +132,49 @@ export class HUDManager {
   }
 
   public flashDamage(directionAngle?: number): void {
+    // Clear any existing timeout to prevent conflicts
+    if (this.damageOverlayTimeout !== null) {
+      clearTimeout(this.damageOverlayTimeout);
+    }
+    
     this.damageOverlay.style.opacity = '0.8';
+    // RED indicator - drop-shadow creates a red glow effect
+    this.damageOverlay.style.filter = 'drop-shadow(0 0 8px red) drop-shadow(0 0 15px red) drop-shadow(0 0 25px red)';
     
     if (directionAngle !== undefined) {
       // Rotate the damage indicator to point towards the source of damage
       // The image points down by default, so we adjust accordingly
-      this.damageOverlay.style.transform = `translate(-50%, -50%) rotate(${directionAngle}deg)`;
+      this.damageOverlay.style.transform = `translate(-50%, -50%) rotate(${(directionAngle + 180) % 360}deg)`;
     } else {
       // Generic damage (no specific direction)
       this.damageOverlay.style.transform = 'translate(-50%, -50%)';
     }
 
-    setTimeout(() => {
+    this.damageOverlayTimeout = setTimeout(() => {
       this.damageOverlay.style.opacity = '0';
-    }, 200);
+      this.damageOverlay.style.filter = 'none';
+      this.damageOverlayTimeout = null;
+    }, 200) as unknown as number;
+  }
+
+  public showNearMissIndicator(directionAngle: number): void {
+    // Clear any existing timeout to prevent conflicts
+    if (this.damageOverlayTimeout !== null) {
+      clearTimeout(this.damageOverlayTimeout);
+    }
+    
+    // WHITE indicator for near misses - bright white glow
+    this.damageOverlay.style.opacity = '0.5'; // Less intense than actual hit
+    this.damageOverlay.style.filter = 'drop-shadow(0 0 8px white) drop-shadow(0 0 15px white)';
+    
+    // Rotate to show direction of incoming fire (flip front/back only)
+    this.damageOverlay.style.transform = `translate(-50%, -50%) rotate(${(directionAngle + 180) % 360}deg)`;
+
+    this.damageOverlayTimeout = setTimeout(() => {
+      this.damageOverlay.style.opacity = '0';
+      this.damageOverlay.style.filter = 'none'; // Reset filter
+      this.damageOverlayTimeout = null;
+    }, 150) as unknown as number; // Shorter duration than actual hit
   }
   
   public showDamageVignette(damageAmount: number, maxHealth: number, directionAngle?: number): void {

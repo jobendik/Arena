@@ -59,6 +59,7 @@ export interface WeaponStats {
   reserveAmmo: number;
   reloadTime: number;
   automatic: boolean;
+  pelletCount?: number; // For shotguns - number of pellets per shot
   audio: {
     fire: string;
     reload: string;
@@ -150,3 +151,6 @@ export interface GameState {
   waveInProgress: boolean;
   betweenWaves: boolean;
 }
+
+// Surface materials for impact system
+export { SurfaceMaterial } from '../systems/ImpactSystem';

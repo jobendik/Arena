@@ -4,6 +4,9 @@ import { EnemyManager, Enemy } from './entities/EnemyManager';
 import { WeaponSystem } from './systems/WeaponSystem';
 import { ParticleSystem } from './systems/ParticleSystem';
 import { PickupSystem } from './systems/PickupSystem';
+import { ImpactSystem } from './systems/ImpactSystem';
+import { DecalSystem } from './systems/DecalSystem';
+import { BulletTracerSystem } from './systems/BulletTracerSystem';
 import { Arena } from './world/Arena';
 import { InputManager } from './core/InputManager';
 import { PostProcessing } from './core/PostProcessing';
@@ -22,6 +25,9 @@ export class Game {
   private enemyManager: EnemyManager;
   private particleSystem: ParticleSystem;
   private pickupSystem: PickupSystem;
+  private impactSystem: ImpactSystem;
+  private decalSystem: DecalSystem;
+  private bulletTracerSystem: BulletTracerSystem;
   private arena: Arena;
   private inputManager: InputManager;
   private hudManager: HUDManager;
@@ -70,6 +76,9 @@ export class Game {
     this.enemyManager = new EnemyManager(this.scene, listener);
     this.particleSystem = new ParticleSystem(this.scene);
     this.pickupSystem = new PickupSystem(this.scene, listener);
+    this.impactSystem = new ImpactSystem(this.scene, listener);
+    this.decalSystem = new DecalSystem(this.scene);
+    this.bulletTracerSystem = new BulletTracerSystem(this.scene);
     this.arena = new Arena(this.scene);
     this.inputManager = new InputManager(CAMERA_CONFIG.mouseSensitivity);
     this.hudManager = new HUDManager();
@@ -388,7 +397,7 @@ export class Game {
 
     // Shooting
     if (this.inputManager.isMouseButtonPressed(0)) {
-      const { direction, shotFired } = this.weaponSystem.shoot(
+      const { direction, shotFired, directions } = this.weaponSystem.shoot(
         this.camera,
         this.player.onGround,
         this.player.isSprinting,
@@ -397,7 +406,34 @@ export class Game {
 
       if (shotFired) {
         this.gameState.shotsFired++;
-        this.handleShooting(direction);
+        const shootOrigin = this.camera.position.clone();
+        
+        // Handle shotgun pellets or single shot
+        if (directions && directions.length > 1) {
+          // Shotgun - fire multiple pellets
+          directions.forEach(dir => this.handleShooting(dir, true));
+          
+          // Create tracer lines for all pellets (visual spray pattern)
+          const impacts: THREE.Vector3[] = [];
+          directions.forEach(dir => {
+            const ray = new THREE.Raycaster(shootOrigin, dir);
+            const intersects = ray.intersectObjects(
+              [...this.arena.arenaObjects.map(obj => obj.mesh), ...this.enemyManager.getEnemies().map(e => e.mesh)],
+              false
+            );
+            if (intersects.length > 0) {
+              impacts.push(intersects[0].point);
+            }
+          });
+          
+          // Show pellet spread with tracers (orange for shotgun)
+          if (impacts.length > 0) {
+            this.bulletTracerSystem.createMultipleTracers(shootOrigin, impacts, 0xff6600);
+          }
+        } else {
+          // Single projectile weapon
+          this.handleShooting(direction, false);
+        }
       }
     }
 
@@ -417,11 +453,13 @@ export class Game {
       this.handleEnemyShoot(enemy);
     });
 
-    // Update particles and pickups
+    // Update particles, pickups, and new systems
     this.particleSystem.update(delta);
     this.pickupSystem.update(this.player.position, this.player, (amount) =>
       this.weaponSystem.addAmmo(amount)
     );
+    this.decalSystem.update(delta);
+    this.bulletTracerSystem.update(delta);
 
     // Update arena
     this.arena.update(this.gameTime);
@@ -462,9 +500,10 @@ export class Game {
     this.updateHUD();
   }
 
-  private handleShooting(direction: THREE.Vector3): void {
+  private handleShooting(direction: THREE.Vector3, isPellet: boolean = false): void {
     const raycaster = new THREE.Raycaster(this.camera.position.clone(), direction);
     let hitEnemy = false;
+    const shootOrigin = this.camera.position.clone();
 
     this.enemyManager.getEnemies().forEach((enemy) => {
       const headBox = new THREE.Box3().setFromObject(enemy.head);
@@ -477,26 +516,35 @@ export class Game {
         hitEnemy = true;
         this.gameState.shotsHit++;
 
+        const hitPosition = enemy.mesh.position.clone().add(new THREE.Vector3(0, 1, 0));
+
         const killed = this.enemyManager.damageEnemy(
           enemy,
           25 * this.player.damageMultiplier,
           hitHead
         );
 
-        this.particleSystem.spawn(
-          enemy.mesh.position.clone().add(new THREE.Vector3(0, 1, 0)),
-          0xef4444,
-          5
-        );
+        // Enhanced impact feedback (reduced for pellets to avoid spam)
+        if (!isPellet) {
+          this.impactSystem.playBodyImpact(hitPosition);
+          this.impactSystem.playHitConfirmation();
+        }
+        this.particleSystem.spawnImpactEffect(hitPosition, killed);
+        
+        // Bullet tracer to hit point (pellets handled separately)
+        if (!isPellet) {
+          this.bulletTracerSystem.createTracer(
+            shootOrigin,
+            hitPosition,
+            killed ? 0xffff00 : 0x00ffff
+          );
+        }
 
         if (killed) {
           this.gameState.kills++;
           this.gameState.score += enemy.score;
-          this.particleSystem.spawn(
-            enemy.mesh.position.clone().add(new THREE.Vector3(0, 1, 0)),
-            0x22c55e,
-            15
-          );
+          this.impactSystem.playDeathImpact(hitPosition);
+          this.particleSystem.spawn(hitPosition, 0x22c55e, 15);
           this.enemyManager.removeEnemy(enemy);
 
           if (Math.random() < 0.3) {
@@ -514,10 +562,38 @@ export class Game {
     });
 
     if (!hitEnemy) {
-      // Hit wall/floor
-      const intersects = raycaster.intersectObjects(this.scene.children, true);
-      if (intersects.length > 0) {
-        this.particleSystem.spawn(intersects[0].point, 0x666666, 3);
+      // Hit wall/floor - check arena objects for material-based impacts
+      const arenaIntersects = raycaster.intersectObjects(
+        this.arena.arenaObjects.map(obj => obj.mesh),
+        false
+      );
+
+      if (arenaIntersects.length > 0) {
+        const hit = arenaIntersects[0];
+        const hitPoint = hit.point;
+        const normal = hit.face?.normal || new THREE.Vector3(0, 1, 0);
+        
+        // Find the arena object to get material type
+        const arenaObj = this.arena.arenaObjects.find(obj => obj.mesh === hit.object);
+        const material = arenaObj?.material || 'default';
+
+        // Surface impact feedback (reduced for pellets)
+        if (!isPellet) {
+          this.impactSystem.playSurfaceImpact(hitPoint, material as any);
+        }
+        
+        // Create bullet hole decal
+        this.decalSystem.createBulletHole(hitPoint, normal, material as any);
+        
+        // Surface debris particles (fewer for pellets)
+        if (!isPellet) {
+          this.particleSystem.spawnSurfaceImpact(hitPoint, normal, 0x888888);
+        }
+        
+        // Bullet tracer handled separately for pellets
+        if (!isPellet) {
+          this.bulletTracerSystem.createTracer(shootOrigin, hitPoint, 0x00ddff);
+        }
       }
     }
   }
@@ -570,15 +646,44 @@ export class Game {
     // Check if any obstacle is closer than the player (with small buffer)
     const hasObstacleInWay = obstacleIntersects.some(intersect => intersect.distance < distanceToPlayer - 0.5);
     
+    // Calculate angle from player to enemy for directional indicator
+    const dx = enemy.mesh.position.x - this.player.position.x;
+    const dz = enemy.mesh.position.z - this.player.position.z;
+    // World-space angle from player to enemy
+    const angleToEnemy = Math.atan2(dx, dz) * (180 / Math.PI);
+    const playerYaw = this.player.rotation.y * (180 / Math.PI);
+    // Relative angle: enemy directly in front -> 180°, behind -> 0°,
+    // right -> 90°, left -> 270° (matches texture: 0° arrow down)
+    const delta = angleToEnemy - playerYaw;
+    let relativeAngle = (delta + 180 + 360) % 360;
+    
+    // Mirror left/right only (preserve front 180° and back 0°)
+    // Front/back range: 135-225° (front) and 0-45°/315-360° (back)
+    if (relativeAngle > 45 && relativeAngle < 315) {
+      // This is a side hit, mirror it: 90° -> 270°, 270° -> 90°
+      relativeAngle = 360 - relativeAngle;
+    }
+    
+    // Expanded near-miss detection box (larger than player hitbox)
+    const nearMissBox = new THREE.Box3(
+      new THREE.Vector3(
+        this.player.position.x - 1.5,
+        this.player.position.y - PLAYER_CONFIG.height,
+        this.player.position.z - 1.5
+      ),
+      new THREE.Vector3(
+        this.player.position.x + 1.5,
+        this.player.position.y + 0.2,
+        this.player.position.z + 1.5
+      )
+    );
+    
     if (!hasObstacleInWay && raycaster.ray.intersectsBox(playerBox)) {
+      // ACTUAL HIT - Red indicator with damage
       const isDead = this.player.takeDamage(enemy.damage);
       
-      // Calculate angle from player to enemy for directional damage indicator
-      const dx = enemy.mesh.position.x - this.player.position.x;
-      const dz = enemy.mesh.position.z - this.player.position.z;
-      const angleToEnemy = Math.atan2(dx, dz) * (180 / Math.PI);
-      const playerYaw = this.player.rotation.y * (180 / Math.PI);
-      const relativeAngle = angleToEnemy - playerYaw;
+      // Show RED damage indicator
+      this.hudManager.flashDamage(relativeAngle);
       
       // Trigger dramatic damage vignette system
       this.hudManager.showDamageVignette(enemy.damage, PLAYER_CONFIG.maxHealth, relativeAngle);
@@ -587,6 +692,9 @@ export class Game {
       if (isDead) {
         this.gameOver();
       }
+    } else if (!hasObstacleInWay && raycaster.ray.intersectsBox(nearMissBox)) {
+      // NEAR MISS - White indicator warning (no damage)
+      this.hudManager.showNearMissIndicator(relativeAngle);
     }
   }
 

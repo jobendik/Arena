@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { ARENA_CONFIG } from '../config/gameConfig';
+import { SurfaceMaterial } from '../systems/ImpactSystem';
 
 export class Arena {
   private scene: THREE.Scene;
-  public arenaObjects: Array<{ mesh: THREE.Mesh; box: THREE.Box3 }> = [];
+  public arenaObjects: Array<{ mesh: THREE.Mesh; box: THREE.Box3; material: SurfaceMaterial }> = [];
   public navMeshObstacles: Array<{ x: number; z: number; width: number; depth: number }> = [];
   private gridHelper?: THREE.GridHelper;
 
@@ -99,7 +100,7 @@ export class Arena {
       wall.receiveShadow = true;
       wall.castShadow = true;
       this.scene.add(wall);
-      this.arenaObjects.push({ mesh: wall, box: new THREE.Box3().setFromObject(wall) });
+      this.arenaObjects.push({ mesh: wall, box: new THREE.Box3().setFromObject(wall), material: SurfaceMaterial.BRICK });
 
       const edge = new THREE.Mesh(
         new THREE.BoxGeometry(w.size[0], 0.2, 0.1),
@@ -129,6 +130,7 @@ export class Arena {
     this.arenaObjects.push({
       mesh: centerPlatform,
       box: new THREE.Box3().setFromObject(centerPlatform),
+      material: SurfaceMaterial.METAL,
     });
 
     const centerBorder = new THREE.Mesh(
@@ -164,7 +166,7 @@ export class Arena {
       platform.receiveShadow = true;
       platform.castShadow = true;
       this.scene.add(platform);
-      this.arenaObjects.push({ mesh: platform, box: new THREE.Box3().setFromObject(platform) });
+      this.arenaObjects.push({ mesh: platform, box: new THREE.Box3().setFromObject(platform), material: SurfaceMaterial.METAL });
 
       const edge = new THREE.Mesh(
         new THREE.BoxGeometry(p.size[0] + 0.2, 0.15, p.size[2] + 0.2),
@@ -198,7 +200,7 @@ export class Arena {
       ramp.receiveShadow = true;
       ramp.castShadow = true;
       this.scene.add(ramp);
-      this.arenaObjects.push({ mesh: ramp, box: new THREE.Box3().setFromObject(ramp) });
+      this.arenaObjects.push({ mesh: ramp, box: new THREE.Box3().setFromObject(ramp), material: SurfaceMaterial.METAL });
     });
   }
 
@@ -226,7 +228,7 @@ export class Arena {
       cover.receiveShadow = true;
       cover.castShadow = true;
       this.scene.add(cover);
-      this.arenaObjects.push({ mesh: cover, box: new THREE.Box3().setFromObject(cover) });
+      this.arenaObjects.push({ mesh: cover, box: new THREE.Box3().setFromObject(cover), material: SurfaceMaterial.WOOD });
       this.navMeshObstacles.push({
         x: c.pos[0],
         z: c.pos[2],
@@ -256,7 +258,7 @@ export class Arena {
       pillar.receiveShadow = true;
       pillar.castShadow = true;
       this.scene.add(pillar);
-      this.arenaObjects.push({ mesh: pillar, box: new THREE.Box3().setFromObject(pillar) });
+      this.arenaObjects.push({ mesh: pillar, box: new THREE.Box3().setFromObject(pillar), material: SurfaceMaterial.METAL });
 
       const ring = new THREE.Mesh(
         new THREE.TorusGeometry(1.2, 0.1, 8, 16),

@@ -1,0 +1,204 @@
+import * as THREE from 'three';
+
+export enum SurfaceMaterial {
+  BRICK = 'brick',
+  WOOD = 'wood',
+  METAL = 'metal',
+  ROCK = 'rock',
+  GRAVEL = 'gravel',
+  DEFAULT = 'default'
+}
+
+interface ImpactAudioBuffers {
+  bodyImpacts: AudioBuffer[];
+  deathImpact?: AudioBuffer;
+  hitImpact?: AudioBuffer;
+  surfaceImpacts: {
+    [key in SurfaceMaterial]?: AudioBuffer[];
+  };
+}
+
+export class ImpactSystem {
+  private audioBuffers: ImpactAudioBuffers = {
+    bodyImpacts: [],
+    surfaceImpacts: {}
+  };
+  private audioListener: THREE.AudioListener;
+  private scene: THREE.Scene;
+  
+  constructor(scene: THREE.Scene, listener: THREE.AudioListener) {
+    this.scene = scene;
+    this.audioListener = listener;
+    this.loadAudio();
+  }
+
+  private loadAudio(): void {
+    const audioLoader = new THREE.AudioLoader();
+
+    // Body impact sounds (randomized for variety)
+    const bodyImpactPaths = [
+      'assets/audio/impact/Body-Impact-1.mp3_ebcdfb87.mp3',
+      'assets/audio/impact/Body-Impact-2.mp3_12d2c187.mp3',
+      'assets/audio/impact/Body-Impact-3.mp3_18dfe9d0.mp3',
+    ];
+
+    bodyImpactPaths.forEach((path) => {
+      audioLoader.load(path, (buffer) => {
+        this.audioBuffers.bodyImpacts.push(buffer);
+      }, undefined, (err) => console.warn(`Failed to load ${path}:`, err));
+    });
+
+    // Death impact
+    audioLoader.load('assets/audio/impact/Death-Impact.mp3_c52d9a48.mp3', (buffer) => {
+      this.audioBuffers.deathImpact = buffer;
+    }, undefined, (err) => console.warn('Failed to load death impact:', err));
+
+    // Hit confirmation
+    audioLoader.load('assets/audio/impact/Hit-Impact.mp3_f966c566.mp3', (buffer) => {
+      this.audioBuffers.hitImpact = buffer;
+    }, undefined, (err) => console.warn('Failed to load hit impact:', err));
+
+    // Surface impacts - organized by material
+    const surfaceImpacts = {
+      [SurfaceMaterial.BRICK]: [
+        'assets/audio/impact/Impact-Brick-1.mp3_a94b2f30.mp3',
+        'assets/audio/impact/Impact-Brick-2.mp3_e5272b6e.mp3',
+      ],
+      [SurfaceMaterial.GRAVEL]: [
+        'assets/audio/impact/Impact-Gravel-1.mp3_316a5b34.mp3',
+        'assets/audio/impact/Impact-Gravel-2.mp3_f200f6f4.mp3',
+      ],
+      [SurfaceMaterial.WOOD]: [
+        'assets/audio/impact/Impact-Wood-1.mp3_64342904.mp3',
+        'assets/audio/impact/Impact-Wood-2.mp3_7d0358dc.mp3',
+      ],
+      [SurfaceMaterial.ROCK]: [
+        'assets/audio/impact/Impact-Rock-1.mp3_3fb18a97.mp3',
+        'assets/audio/impact/Impact-Rock-2.mp3_36f87391.mp3',
+      ],
+      [SurfaceMaterial.METAL]: [
+        'assets/audio/impact/Impact-Metal.mp3_6914f782.mp3',
+        'assets/audio/impact/Impact-Iron.mp3_9d87d712.mp3',
+        'assets/audio/impact/Impact-Iron-Light.mp3_98124b45.mp3',
+      ],
+    };
+
+    Object.entries(surfaceImpacts).forEach(([material, paths]) => {
+      this.audioBuffers.surfaceImpacts[material as SurfaceMaterial] = [];
+      paths.forEach((path) => {
+        audioLoader.load(path, (buffer) => {
+          this.audioBuffers.surfaceImpacts[material as SurfaceMaterial]!.push(buffer);
+        }, undefined, (err) => console.warn(`Failed to load ${path}:`, err));
+      });
+    });
+  }
+
+  /**
+   * Play body hit impact sound - randomized for variety
+   * Volume is exaggerated for satisfying feedback
+   */
+  public playBodyImpact(position: THREE.Vector3, volume: number = 1.0): void {
+    if (this.audioBuffers.bodyImpacts.length === 0) return;
+
+    const sound = new THREE.PositionalAudio(this.audioListener);
+    const randomBuffer = this.audioBuffers.bodyImpacts[
+      Math.floor(Math.random() * this.audioBuffers.bodyImpacts.length)
+    ];
+    
+    sound.setBuffer(randomBuffer);
+    sound.setRefDistance(5);
+    sound.setVolume(volume * 1.5); // Exaggerated for punchiness
+    sound.setLoop(false);
+    
+    // Create temporary object for positional audio
+    const temp = new THREE.Object3D();
+    temp.position.copy(position);
+    this.scene.add(temp);
+    temp.add(sound);
+    
+    sound.play();
+    sound.onEnded = () => {
+      this.scene.remove(temp);
+    };
+  }
+
+  /**
+   * Play death impact - final, explosive sound
+   */
+  public playDeathImpact(position: THREE.Vector3): void {
+    if (!this.audioBuffers.deathImpact) return;
+
+    const sound = new THREE.PositionalAudio(this.audioListener);
+    sound.setBuffer(this.audioBuffers.deathImpact);
+    sound.setRefDistance(8);
+    sound.setVolume(2.0); // Very loud and punchy
+    sound.setLoop(false);
+    
+    const temp = new THREE.Object3D();
+    temp.position.copy(position);
+    this.scene.add(temp);
+    temp.add(sound);
+    
+    sound.play();
+    sound.onEnded = () => {
+      this.scene.remove(temp);
+    };
+  }
+
+  /**
+   * Play hit confirmation sound - instant feedback, zero latency
+   */
+  public playHitConfirmation(volume: number = 0.8): void {
+    if (!this.audioBuffers.hitImpact) return;
+
+    const sound = new THREE.Audio(this.audioListener);
+    sound.setBuffer(this.audioBuffers.hitImpact);
+    sound.setVolume(volume * 1.2);
+    sound.play();
+  }
+
+  /**
+   * Play surface impact based on material type
+   * Different materials = distinct sonic signatures for instant clarity
+   */
+  public playSurfaceImpact(
+    position: THREE.Vector3,
+    material: SurfaceMaterial,
+    volume: number = 0.8
+  ): void {
+    const buffers = this.audioBuffers.surfaceImpacts[material];
+    if (!buffers || buffers.length === 0) {
+      // Fallback to metal for default
+      const fallback = this.audioBuffers.surfaceImpacts[SurfaceMaterial.METAL];
+      if (!fallback || fallback.length === 0) return;
+      this.playSurfaceImpactWithBuffer(position, fallback, volume);
+      return;
+    }
+
+    this.playSurfaceImpactWithBuffer(position, buffers, volume);
+  }
+
+  private playSurfaceImpactWithBuffer(
+    position: THREE.Vector3,
+    buffers: AudioBuffer[],
+    volume: number
+  ): void {
+    const sound = new THREE.PositionalAudio(this.audioListener);
+    const randomBuffer = buffers[Math.floor(Math.random() * buffers.length)];
+    
+    sound.setBuffer(randomBuffer);
+    sound.setRefDistance(10);
+    sound.setVolume(volume * 1.3); // Punchy and exaggerated
+    sound.setLoop(false);
+    
+    const temp = new THREE.Object3D();
+    temp.position.copy(position);
+    this.scene.add(temp);
+    temp.add(sound);
+    
+    sound.play();
+    sound.onEnded = () => {
+      this.scene.remove(temp);
+    };
+  }
+}
