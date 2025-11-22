@@ -60,6 +60,13 @@ export class EnemyManager {
       hurtFemale3: 'assets/audio/enemy/Female-Grunt-3.mp3_4d6460fd.mp3',
       deathFemale: 'assets/audio/enemy/Female-Death-1.mp3_37cc105e.mp3',
       jumpFemale: 'assets/audio/enemy/Female-Jump-2.mp3_3f5bd70e.mp3',
+      // Kulu (Heavy) Sounds
+      hurtKulu1: 'assets/audio/enemy/Kulu-Grunt-1.mp3_ea942b67.mp3',
+      hurtKulu2: 'assets/audio/enemy/Kulu-Grunt-2.mp3_8e323b62.mp3',
+      hurtKulu3: 'assets/audio/enemy/Kulu-Grunt-3.mp3_5bae51a4.mp3',
+      deathKulu: 'assets/audio/enemy/Kulu-Death-1.mp3_d65e968a.mp3',
+      jumpKulu1: 'assets/audio/enemy/Kulu-Jump-1.mp3_3aef7e5f.mp3',
+      jumpKulu2: 'assets/audio/enemy/Kulu-Jump-2.mp3_8cba70b6.mp3',
     };
 
     Object.entries(audioFiles).forEach(([key, path]) => {
@@ -158,6 +165,35 @@ export class EnemyManager {
 
     const jumpSound = new THREE.Audio(this.listener);
     group.add(jumpSound);
+
+    // Assign buffers based on enemy type
+    if (type === 'heavy') {
+      // Use Kulu sounds for heavy
+      if (this.audioBuffers['deathKulu']) deathSound.setBuffer(this.audioBuffers['deathKulu']);
+      if (this.audioBuffers['jumpKulu1']) jumpSound.setBuffer(this.audioBuffers['jumpKulu1']);
+      
+      // Randomize hurt sounds
+      const kuluHurts = ['hurtKulu1', 'hurtKulu2', 'hurtKulu3'];
+      hurtSounds.forEach((sound, index) => {
+        const key = kuluHurts[index % kuluHurts.length];
+        if (this.audioBuffers[key]) sound.setBuffer(this.audioBuffers[key]);
+      });
+    } else {
+      // Default to Female sounds for others
+      if (this.audioBuffers['deathFemale']) deathSound.setBuffer(this.audioBuffers['deathFemale']);
+      if (this.audioBuffers['jumpFemale']) jumpSound.setBuffer(this.audioBuffers['jumpFemale']);
+      
+      const femaleHurts = ['hurtFemale1', 'hurtFemale2', 'hurtFemale3'];
+      hurtSounds.forEach((sound, index) => {
+        const key = femaleHurts[index % femaleHurts.length];
+        if (this.audioBuffers[key]) sound.setBuffer(this.audioBuffers[key]);
+      });
+    }
+
+    // Set weapon sound
+    if (this.audioBuffers[weaponType]) {
+      shootSound.setBuffer(this.audioBuffers[weaponType]);
+    }
 
     this.enemies.push({
       mesh: group,

@@ -13,6 +13,8 @@ export class ParticleSystem {
   private scene: THREE.Scene;
   private hitImpactTexture?: THREE.Texture;
   private hitSpriteLowTexture?: THREE.Texture;
+  private skullTexture?: THREE.Texture;
+  private fireSmokeTexture?: THREE.Texture;
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -38,6 +40,27 @@ export class ParticleSystem {
       },
       undefined,
       (err) => console.warn('Failed to load hit sprite texture:', err)
+    );
+
+    textureLoader.load(
+      'assets/images/Skull-Spritesheet.png_0d1e8283.png',
+      (texture) => {
+        this.skullTexture = texture;
+        // Assuming spritesheet, but for now we'll use it as a single sprite or handle UVs if we knew the layout.
+        // Since we don't know the layout (rows/cols), we'll treat it as a single high-impact icon for now.
+        // If it looks weird, we can adjust UVs later.
+      },
+      undefined,
+      (err) => console.warn('Failed to load skull texture:', err)
+    );
+
+    textureLoader.load(
+      'assets/images/Fire-Smoke-Spritesheet.png_b8350fa1.png',
+      (texture) => {
+        this.fireSmokeTexture = texture;
+      },
+      undefined,
+      (err) => console.warn('Failed to load fire smoke texture:', err)
     );
   }
 
@@ -73,6 +96,10 @@ export class ParticleSystem {
    * Bright, satisfying bloom that makes every shot feel significant
    */
   public spawnImpactEffect(position: THREE.Vector3, isKill: boolean = false): void {
+    if (isKill && this.skullTexture) {
+      this.spawnKillEffect(position);
+    }
+
     const texture = isKill ? this.hitImpactTexture : this.hitSpriteLowTexture;
     if (!texture) {
       // Fallback to basic particles
@@ -108,6 +135,33 @@ export class ParticleSystem {
     }
   }
 
+  public spawnKillEffect(position: THREE.Vector3): void {
+    if (!this.skullTexture) return;
+
+    const spriteMaterial = new THREE.SpriteMaterial({
+      map: this.skullTexture,
+      blending: THREE.AdditiveBlending,
+      transparent: true,
+      opacity: 1,
+      color: 0xffffff,
+      depthTest: false // Always visible on top
+    });
+
+    const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.scale.set(1.5, 1.5, 1.5);
+    sprite.position.copy(position);
+    sprite.position.y += 1.0; // Float above enemy
+
+    this.scene.add(sprite);
+    this.particles.push({
+      mesh: sprite,
+      velocity: new THREE.Vector3(0, 2, 0), // Float up
+      lifetime: 0,
+      maxLifetime: 1.0,
+      initialScale: 1.5,
+    });
+  }
+
   /**
    * Spawn surface impact particles - debris flying from surface
    */
@@ -134,6 +188,36 @@ export class ParticleSystem {
         maxLifetime: 0.4 + Math.random() * 0.3,
       });
     }
+  }
+
+  public spawnExplosion(position: THREE.Vector3): void {
+    if (!this.fireSmokeTexture) return;
+
+    // Create a large explosion effect
+    const spriteMaterial = new THREE.SpriteMaterial({
+      map: this.fireSmokeTexture,
+      blending: THREE.AdditiveBlending,
+      transparent: true,
+      opacity: 1,
+      color: 0xffaa00,
+    });
+
+    const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.scale.set(4, 4, 4);
+    sprite.position.copy(position);
+    sprite.position.y += 1.0;
+
+    this.scene.add(sprite);
+    this.particles.push({
+      mesh: sprite,
+      velocity: new THREE.Vector3(0, 1, 0),
+      lifetime: 0,
+      maxLifetime: 0.8,
+      initialScale: 4,
+    });
+
+    // Add some debris
+    this.spawn(position, 0xff4400, 20);
   }
 
   public update(delta: number): void {

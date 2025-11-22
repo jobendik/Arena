@@ -28,6 +28,9 @@ export class BulletTracerSystem {
       'assets/images/Bullet-Trace.png_1b6132fc.png',
       (texture) => {
         this.tracerTexture = texture;
+        // Ensure texture wraps correctly for stretching
+        this.tracerTexture.wrapS = THREE.RepeatWrapping;
+        this.tracerTexture.wrapT = THREE.RepeatWrapping;
       },
       undefined,
       (err) => console.warn('Failed to load bullet trace texture:', err)
@@ -37,6 +40,8 @@ export class BulletTracerSystem {
       'assets/images/Bullet-Fire-Trace.jpg_d795b3f8.jpg',
       (texture) => {
         this.fireTracerTexture = texture;
+        this.fireTracerTexture.wrapS = THREE.RepeatWrapping;
+        this.fireTracerTexture.wrapT = THREE.RepeatWrapping;
       },
       undefined,
       (err) => console.warn('Failed to load fire trace texture:', err)

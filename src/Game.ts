@@ -37,6 +37,7 @@ export class Game {
   private gameTime = 0;
   private pointLights: Array<{ light: THREE.PointLight; baseIntensity: number; phase: number }> = [];
   private skyMaterial?: THREE.ShaderMaterial;
+  private respawnSound?: THREE.Audio;
 
   constructor() {
     console.log('Initializing game...');
@@ -53,6 +54,14 @@ export class Game {
     // Audio Listener
     const listener = new THREE.AudioListener();
     this.camera.add(listener);
+
+    // Load Respawn Sound
+    const audioLoader = new THREE.AudioLoader();
+    this.respawnSound = new THREE.Audio(listener);
+    audioLoader.load('assets/audio/level/Respawn-Sound.mp3_d53a31ce.mp3', (buffer) => {
+      this.respawnSound?.setBuffer(buffer);
+      this.respawnSound?.setVolume(0.5);
+    });
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -73,13 +82,13 @@ export class Game {
     // Initialize game systems
     this.player = new Player(listener);
     this.weaponSystem = new WeaponSystem(this.camera, listener);
+    this.arena = new Arena(this.scene);
     this.enemyManager = new EnemyManager(this.scene, listener);
     this.particleSystem = new ParticleSystem(this.scene);
-    this.pickupSystem = new PickupSystem(this.scene, listener);
+    this.pickupSystem = new PickupSystem(this.scene, listener, this.arena);
     this.impactSystem = new ImpactSystem(this.scene, listener);
     this.decalSystem = new DecalSystem(this.scene);
     this.bulletTracerSystem = new BulletTracerSystem(this.scene, this.camera);
-    this.arena = new Arena(this.scene);
     this.inputManager = new InputManager(CAMERA_CONFIG.mouseSensitivity);
     this.hudManager = new HUDManager();
     this.postProcessing = new PostProcessing(this.renderer, this.scene, this.camera);
@@ -562,6 +571,11 @@ export class Game {
         }
         this.particleSystem.spawnImpactEffect(hitPosition, killed);
         
+        // Show headshot icon if applicable
+        if (killed && hitHead) {
+          this.hudManager.showHeadshotIcon();
+        }
+        
         // Bullet tracer to hit point (pellets handled separately)
         if (!isPellet) {
           const tracerProps = this.getTracerProperties();
@@ -578,6 +592,12 @@ export class Game {
           this.gameState.score += enemy.score;
           this.impactSystem.playDeathImpact(hitPosition);
           this.particleSystem.spawn(hitPosition, 0x22c55e, 15);
+          this.hudManager.showKillIcon(); // Show kill icon
+          
+          if (enemy.type === 'heavy') {
+            this.particleSystem.spawnExplosion(hitPosition);
+          }
+
           this.enemyManager.removeEnemy(enemy);
 
           if (Math.random() < 0.3) {
@@ -810,6 +830,9 @@ export class Game {
 
   public start(): void {
     this.lastTime = performance.now();
+    if (this.respawnSound && this.respawnSound.buffer) {
+      this.respawnSound.play();
+    }
     this.animate();
   }
 

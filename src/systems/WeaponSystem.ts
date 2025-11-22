@@ -49,10 +49,13 @@ export class WeaponSystem {
   private audioBuffers: Record<string, AudioBuffer> = {};
   private fireSound: THREE.Audio;
   private reloadSound: THREE.Audio;
-  private tailSound: THREE.Audio;
   private loadSound: THREE.Audio;
   private cockSound: THREE.Audio;
   private zoomSound: THREE.Audio;
+  private tailSound: THREE.Audio;
+  
+  // Textures
+  private muzzleTexture?: THREE.Texture;
 
   // Weapon model
   private weaponGroup: THREE.Group;
@@ -60,7 +63,6 @@ export class WeaponSystem {
   private muzzleFlash2: THREE.Sprite;
   private muzzleLight: THREE.PointLight;
   private camera: THREE.Camera;
-  private muzzleFlashTexture?: THREE.Texture;
 
   constructor(camera: THREE.Camera, listener: THREE.AudioListener) {
     this.camera = camera;
@@ -85,17 +87,7 @@ export class WeaponSystem {
     this.zoomSound = new THREE.Audio(listener);
 
     this.loadAllAudio();
-
-    // Load muzzle flash texture
-    const textureLoader = new THREE.TextureLoader();
-    textureLoader.load(
-      'assets/images/muzzle.png_19188667.png',
-      (texture) => {
-        this.muzzleFlashTexture = texture;
-      },
-      undefined,
-      (err) => console.warn('Failed to load muzzle flash texture:', err)
-    );
+    this.loadTextures();
 
     // Create muzzle effects with initial weapon's position
     const initialConfig = WEAPON_CONFIG[this.currentWeaponType];
@@ -103,24 +95,26 @@ export class WeaponSystem {
     
     // Use sprite for muzzle flash with texture - larger and more visible
     const spriteMat = new THREE.SpriteMaterial({
-      color: 0xffaa00,
+      map: this.muzzleTexture || null,
+      color: 0xffffff, // White to let texture color show through, or tint if needed
       transparent: true,
       opacity: 0,
       blending: THREE.AdditiveBlending,
     });
     this.muzzleFlash = new THREE.Sprite(spriteMat);
-    this.muzzleFlash.scale.set(0.6, 0.6, 1); // Doubled size for visibility
+    this.muzzleFlash.scale.set(0.8, 0.8, 1); // Larger for texture
     this.muzzleFlash.position.set(initialPos.x, initialPos.y, initialPos.z);
     this.weaponGroup.add(this.muzzleFlash);
 
     const spriteMat2 = new THREE.SpriteMaterial({
-      color: 0xffff00,
+      map: this.muzzleTexture || null,
+      color: 0xffaa00, // Tint secondary flash
       transparent: true,
       opacity: 0,
       blending: THREE.AdditiveBlending,
     });
     this.muzzleFlash2 = new THREE.Sprite(spriteMat2);
-    this.muzzleFlash2.scale.set(0.5, 0.5, 1); // Doubled for visibility
+    this.muzzleFlash2.scale.set(0.6, 0.6, 1);
     this.muzzleFlash2.position.set(initialPos.x, initialPos.y, initialPos.z - 0.02);
     this.weaponGroup.add(this.muzzleFlash2);
 
@@ -150,6 +144,27 @@ export class WeaponSystem {
         }
       });
     });
+  }
+
+  private loadTextures(): void {
+    const textureLoader = new THREE.TextureLoader();
+    
+    textureLoader.load(
+      'assets/images/muzzle.png_19188667.png',
+      (texture) => {
+        this.muzzleTexture = texture;
+        if (this.muzzleFlash) {
+          this.muzzleFlash.material.map = texture;
+          this.muzzleFlash.material.needsUpdate = true;
+        }
+        if (this.muzzleFlash2) {
+          this.muzzleFlash2.material.map = texture;
+          this.muzzleFlash2.material.needsUpdate = true;
+        }
+      },
+      undefined,
+      (err) => console.warn('Failed to load muzzle texture:', err)
+    );
   }
 
   public switchWeapon(index: number): void {
@@ -721,8 +736,8 @@ export class WeaponSystem {
     const flashMat = this.muzzleFlash.material as THREE.SpriteMaterial;
     
     // Update texture if loaded
-    if (this.muzzleFlashTexture && !flashMat.map) {
-      flashMat.map = this.muzzleFlashTexture;
+    if (this.muzzleTexture && !flashMat.map) {
+      flashMat.map = this.muzzleTexture;
       flashMat.needsUpdate = true;
     }
     
@@ -732,8 +747,8 @@ export class WeaponSystem {
 
     this.muzzleFlash2.scale.set(scale * 0.8, scale * 0.8, 1); // Doubled from 0.4
     const flash2Mat = this.muzzleFlash2.material as THREE.SpriteMaterial;
-    if (this.muzzleFlashTexture && !flash2Mat.map) {
-      flash2Mat.map = this.muzzleFlashTexture;
+    if (this.muzzleTexture && !flash2Mat.map) {
+      flash2Mat.map = this.muzzleTexture;
       flash2Mat.needsUpdate = true;
     }
     flash2Mat.color.setHex(cfg.lightColor);
@@ -766,11 +781,11 @@ export class WeaponSystem {
 
     for (let i = 0; i < cfg.smokeParticles; i++) {
       const smokeMesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.1, 0.1),
+        new THREE.PlaneGeometry(0.05, 0.05),
         new THREE.MeshBasicMaterial({
           color: 0xaaaaaa,
           transparent: true,
-          opacity: 0.4,
+          opacity: 0.2,
           side: THREE.DoubleSide,
         })
       );
@@ -915,7 +930,7 @@ export class WeaponSystem {
 
       smoke.lifetime += delta;
       const lifeRatio = 1 - (smoke.lifetime / smoke.maxLifetime);
-      (smoke.mesh.material as THREE.MeshBasicMaterial).opacity = lifeRatio * 0.4;
+      (smoke.mesh.material as THREE.MeshBasicMaterial).opacity = lifeRatio * 0.2;
       smoke.mesh.scale.setScalar(1 + (1 - lifeRatio) * 2);
       smoke.mesh.lookAt(this.weaponGroup.parent!.position); // Look at camera
 

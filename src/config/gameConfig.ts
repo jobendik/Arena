@@ -82,8 +82,8 @@ const DEFAULT_VISUALS = {
     bobInfluence: 1,
     sprintOffsetX: -0.1,
     sprintOffsetY: -0.1,
-    reloadDipY: -0.2,
-    reloadRotX: -0.5,
+    reloadDipY: 0.15,
+    reloadRotX: 0.4,
     sprintRotZ: 0.5,
   },
 };
@@ -95,7 +95,7 @@ export const WEAPON_CONFIG: WeaponConfig = {
     fireRate: 10,
     magSize: 30,
     reserveAmmo: 90,
-    reloadTime: 2.5,
+    reloadTime: 2.0,
     automatic: true,
     audio: {
       fire: BASE_AUDIO_PATH + 'AK47-Fire.mp3_aad0f6c9.mp3',
@@ -134,7 +134,7 @@ export const WEAPON_CONFIG: WeaponConfig = {
     fireRate: 0.8,
     magSize: 10,
     reserveAmmo: 30,
-    reloadTime: 3.5,
+    reloadTime: 2.8,
     automatic: false,
     audio: {
       fire: BASE_AUDIO_PATH + 'AWP-Fire.mp3_1b838826.mp3',
@@ -174,7 +174,7 @@ export const WEAPON_CONFIG: WeaponConfig = {
     fireRate: 12,
     magSize: 100,
     reserveAmmo: 200,
-    reloadTime: 4.0,
+    reloadTime: 3.5,
     automatic: true,
     audio: {
       fire: BASE_AUDIO_PATH + 'LMG-Fire.mp3',
@@ -213,7 +213,7 @@ export const WEAPON_CONFIG: WeaponConfig = {
     fireRate: 11,
     magSize: 30,
     reserveAmmo: 90,
-    reloadTime: 2.2,
+    reloadTime: 1.8,
     automatic: true,
     audio: {
       fire: BASE_AUDIO_PATH + 'M4-Fire.mp3_1ebefbe9.mp3',
@@ -252,7 +252,7 @@ export const WEAPON_CONFIG: WeaponConfig = {
     fireRate: 6,
     magSize: 12,
     reserveAmmo: 48,
-    reloadTime: 1.5,
+    reloadTime: 1.2,
     automatic: false,
     audio: {
       fire: BASE_AUDIO_PATH + 'Pistol-Fire.mp3_b6b25ed9.mp3',
@@ -291,7 +291,7 @@ export const WEAPON_CONFIG: WeaponConfig = {
     fireRate: 9,
     magSize: 20,
     reserveAmmo: 60,
-    reloadTime: 2.8,
+    reloadTime: 2.4,
     automatic: true,
     audio: {
       fire: BASE_AUDIO_PATH + 'Scar-Fire-1.mp3_d0e2f2c3.mp3',
@@ -331,7 +331,7 @@ export const WEAPON_CONFIG: WeaponConfig = {
     fireRate: 1.5,
     magSize: 8,
     reserveAmmo: 32,
-    reloadTime: 3.0,
+    reloadTime: 2.5,
     automatic: false,
     pelletCount: 8, // Fires 8 pellets in a spread pattern
     audio: {
@@ -373,7 +373,7 @@ export const WEAPON_CONFIG: WeaponConfig = {
     fireRate: 1.0,
     magSize: 5,
     reserveAmmo: 20,
-    reloadTime: 3.0,
+    reloadTime: 2.8,
     automatic: false,
     audio: {
       fire: BASE_AUDIO_PATH + 'Sniper-Fire.mp3_e5df2297.mp3',
@@ -415,7 +415,7 @@ export const WEAPON_CONFIG: WeaponConfig = {
     fireRate: 14,
     magSize: 24,
     reserveAmmo: 72,
-    reloadTime: 2.0,
+    reloadTime: 1.6,
     automatic: true,
     audio: {
       fire: BASE_AUDIO_PATH + 'Tec-9-Fire.mp3_1ef19caa.mp3',

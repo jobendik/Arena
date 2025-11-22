@@ -1,7 +1,10 @@
 export class HUDManager {
-  private healthBar: HTMLElement;
-  private armorBar: HTMLElement;
-  private staminaBar: HTMLElement;
+  private healthBarMask: HTMLElement;
+  private healthText: HTMLElement;
+  private armorBarMask: HTMLElement;
+  private armorText: HTMLElement;
+  private staminaBarMask: HTMLElement;
+  private staminaText: HTMLElement;
   private weaponName: HTMLElement;
   private ammoDisplay: HTMLElement;
   private waveDisplay: HTMLElement;
@@ -16,6 +19,8 @@ export class HUDManager {
   private crosshairBottom: HTMLElement;
   private crosshairLeft: HTMLElement;
   private crosshairRight: HTMLElement;
+  private killIcon: HTMLElement;
+  private headshotIcon: HTMLElement;
   
   // Vignette system
   private vignetteImpactFlash: HTMLElement;
@@ -26,9 +31,12 @@ export class HUDManager {
   private damageOverlayTimeout: number | null = null;
 
   constructor() {
-    this.healthBar = document.getElementById('health-bar')!;
-    this.armorBar = document.getElementById('armor-bar')!;
-    this.staminaBar = document.getElementById('stamina-bar')!;
+    this.healthBarMask = document.getElementById('health-bar-mask')!;
+    this.healthText = document.getElementById('health-text-value')!;
+    this.armorBarMask = document.getElementById('armor-bar-mask')!;
+    this.armorText = document.getElementById('armor-text-value')!;
+    this.staminaBarMask = document.getElementById('stamina-bar-mask')!;
+    this.staminaText = document.getElementById('stamina-text-value')!;
     this.weaponName = document.getElementById('weapon-name')!;
     this.ammoDisplay = document.getElementById('ammo-display')!;
     this.waveDisplay = document.getElementById('wave-display')!;
@@ -43,6 +51,8 @@ export class HUDManager {
     this.crosshairBottom = document.getElementById('cross-bottom')!;
     this.crosshairLeft = document.getElementById('cross-left')!;
     this.crosshairRight = document.getElementById('cross-right')!;
+    this.killIcon = document.getElementById('kill-icon')!;
+    this.headshotIcon = document.getElementById('headshot-icon')!;
     
     // Vignette system
     this.vignetteImpactFlash = document.getElementById('vignette-impact-flash')!;
@@ -51,14 +61,9 @@ export class HUDManager {
   }
 
   public updateHealth(health: number, maxHealth: number): void {
-    const pct = (health / maxHealth) * 100;
-    this.healthBar.style.width = `${pct}%`;
-    this.healthBar.style.background =
-      pct > 60
-        ? 'linear-gradient(90deg, #22c55e, #4ade80)'
-        : pct > 30
-        ? 'linear-gradient(90deg, #f59e0b, #fbbf24)'
-        : 'linear-gradient(90deg, #ef4444, #f87171)';
+    const pct = Math.max(0, (health / maxHealth) * 100);
+    this.healthBarMask.style.width = `${pct}%`;
+    this.healthText.textContent = Math.ceil(health).toString();
     
     // Update critical vignette based on HP
     this.updateCriticalVignette(pct);
@@ -89,11 +94,15 @@ export class HUDManager {
   }
 
   public updateArmor(armor: number, maxArmor: number): void {
-    this.armorBar.style.width = `${(armor / maxArmor) * 100}%`;
+    const pct = Math.max(0, (armor / maxArmor) * 100);
+    this.armorBarMask.style.width = `${pct}%`;
+    this.armorText.textContent = Math.ceil(armor).toString();
   }
 
   public updateStamina(stamina: number, maxStamina: number): void {
-    this.staminaBar.style.width = `${(stamina / maxStamina) * 100}%`;
+    const pct = Math.max(0, (stamina / maxStamina) * 100);
+    this.staminaBarMask.style.width = `${pct}%`;
+    this.staminaText.textContent = Math.ceil(stamina).toString();
   }
 
   public updateWeaponName(name: string): void {
@@ -137,9 +146,9 @@ export class HUDManager {
       clearTimeout(this.damageOverlayTimeout);
     }
     
-    this.damageOverlay.style.opacity = '0.8';
+    this.damageOverlay.style.opacity = '1';
     // RED indicator - drop-shadow creates a red glow effect
-    this.damageOverlay.style.filter = 'drop-shadow(0 0 8px red) drop-shadow(0 0 15px red) drop-shadow(0 0 25px red)';
+    this.damageOverlay.style.filter = 'drop-shadow(0 0 8px red) drop-shadow(0 0 15px red)';
     
     if (directionAngle !== undefined) {
       // Rotate the damage indicator to point towards the source of damage
@@ -154,7 +163,7 @@ export class HUDManager {
       this.damageOverlay.style.opacity = '0';
       this.damageOverlay.style.filter = 'none';
       this.damageOverlayTimeout = null;
-    }, 200) as unknown as number;
+    }, 300) as unknown as number;
   }
 
   public showNearMissIndicator(directionAngle: number): void {
@@ -239,15 +248,18 @@ export class HUDManager {
     }
   }  public showHitmarker(isKill: boolean): void {
     const hitmarker = document.getElementById('hitmarker')!;
+    const img = hitmarker.querySelector('img');
+    
     hitmarker.style.opacity = '1';
     hitmarker.style.transform = isKill
       ? 'translate(-50%, -50%) scale(1.5)'
-      : 'translate(-50%, -50%) scale(1)';
+      : 'translate(-50%, -50%) scale(1.2)';
 
-    const lines = hitmarker.querySelectorAll('line');
-    lines.forEach((line) => {
-      line.setAttribute('stroke', isKill ? '#ef4444' : '#ffffff');
-    });
+    if (img) {
+      img.style.filter = isKill 
+        ? 'drop-shadow(0 0 5px #ef4444) sepia(1) saturate(1000%) hue-rotate(-50deg)' // Red for kill
+        : 'drop-shadow(0 0 2px #ffffff)'; // White for hit
+    }
 
     setTimeout(() => {
       hitmarker.style.opacity = '0';
@@ -346,5 +358,31 @@ export class HUDManager {
 
   public hideStartScreen(): void {
     (document.getElementById('start-screen')! as HTMLElement).style.display = 'none';
+  }
+
+  public showKillIcon(): void {
+    this.killIcon.style.opacity = '1';
+    this.killIcon.style.transform = 'translate(-50%, -50%) scale(1.2)';
+    
+    setTimeout(() => {
+      this.killIcon.style.transform = 'translate(-50%, -50%) scale(1.0)';
+    }, 50);
+
+    setTimeout(() => {
+      this.killIcon.style.opacity = '0';
+    }, 500);
+  }
+
+  public showHeadshotIcon(): void {
+    this.headshotIcon.style.opacity = '1';
+    this.headshotIcon.style.transform = 'translate(-50%, -50%) scale(1.2)';
+    
+    setTimeout(() => {
+      this.headshotIcon.style.transform = 'translate(-50%, -50%) scale(1.0)';
+    }, 50);
+
+    setTimeout(() => {
+      this.headshotIcon.style.opacity = '0';
+    }, 500);
   }
 }

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Player } from '../entities/Player';
+import { Arena } from '../world/Arena';
 
 export interface Pickup {
   mesh: THREE.Mesh;
@@ -10,12 +11,14 @@ export interface Pickup {
 export class PickupSystem {
   private pickups: Pickup[] = [];
   private scene: THREE.Scene;
+  private arena: Arena;
   private healthSound: THREE.Audio;
   private armorSound: THREE.Audio;
   private audioBuffers: Map<string, AudioBuffer> = new Map();
 
-  constructor(scene: THREE.Scene, listener: THREE.AudioListener) {
+  constructor(scene: THREE.Scene, listener: THREE.AudioListener, arena: Arena) {
     this.scene = scene;
+    this.arena = arena;
     this.healthSound = new THREE.Audio(listener);
     this.armorSound = new THREE.Audio(listener);
     this.loadAudio();
@@ -135,16 +138,35 @@ export class PickupSystem {
   }
 
   public spawnWavePickups(playerHealth: number, maxHealth: number, wave: number): void {
-    this.create('health', new THREE.Vector3((Math.random() - 0.5) * 40, 0.5, (Math.random() - 0.5) * 40));
-    this.create('ammo', new THREE.Vector3((Math.random() - 0.5) * 40, 0.5, (Math.random() - 0.5) * 40));
-    this.create('armor', new THREE.Vector3((Math.random() - 0.5) * 40, 0.5, (Math.random() - 0.5) * 40));
+    const getValidPosition = (range: number): THREE.Vector3 => {
+      for (let i = 0; i < 20; i++) {
+        const pos = new THREE.Vector3((Math.random() - 0.5) * range, 0.5, (Math.random() - 0.5) * range);
+        const pickupBox = new THREE.Box3().setFromCenterAndSize(pos, new THREE.Vector3(0.8, 0.8, 0.8)); // Slightly larger check
+        
+        let collision = false;
+        for (const obj of this.arena.arenaObjects) {
+          if (pickupBox.intersectsBox(obj.box)) {
+            collision = true;
+            break;
+          }
+        }
+        
+        if (!collision) return pos;
+      }
+      // Fallback to a safe default if we can't find a spot (e.g., center-ish but offset)
+      return new THREE.Vector3(5, 0.5, 5);
+    };
+
+    this.create('health', getValidPosition(40));
+    this.create('ammo', getValidPosition(40));
+    this.create('armor', getValidPosition(40));
 
     if (playerHealth < maxHealth * 0.5) {
-      this.create('health', new THREE.Vector3((Math.random() - 0.5) * 20, 0.5, (Math.random() - 0.5) * 20));
+      this.create('health', getValidPosition(20));
     }
 
     const powerupTypes = ['damage', 'speed', 'rapid'];
-    this.create(powerupTypes[wave % 3], new THREE.Vector3((Math.random() - 0.5) * 20, 0.5, (Math.random() - 0.5) * 20));
+    this.create(powerupTypes[wave % 3], getValidPosition(20));
   }
 
   public clear(): void {
