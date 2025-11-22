@@ -78,7 +78,7 @@ export class Game {
     this.pickupSystem = new PickupSystem(this.scene, listener);
     this.impactSystem = new ImpactSystem(this.scene, listener);
     this.decalSystem = new DecalSystem(this.scene);
-    this.bulletTracerSystem = new BulletTracerSystem(this.scene);
+    this.bulletTracerSystem = new BulletTracerSystem(this.scene, this.camera);
     this.arena = new Arena(this.scene);
     this.inputManager = new InputManager(CAMERA_CONFIG.mouseSensitivity);
     this.hudManager = new HUDManager();
@@ -295,6 +295,36 @@ export class Game {
     this.updateHUD();
   }
 
+  /**
+   * Get weapon-specific tracer color and texture preference
+   * Bright, saturated colors for maximum visibility
+   */
+  private getTracerProperties(): { color: number; useFireTexture: boolean } {
+    const weaponType = this.weaponSystem.currentWeaponType;
+    
+    switch (weaponType) {
+      case 'AK47':
+        return { color: 0xff6600, useFireTexture: true }; // Bright orange fire
+      case 'M4':
+        return { color: 0x00ffff, useFireTexture: false }; // Bright cyan
+      case 'AWP':
+      case 'Sniper':
+        return { color: 0xff00ff, useFireTexture: true }; // Bright magenta energy
+      case 'LMG':
+        return { color: 0xffcc00, useFireTexture: true }; // Bright yellow-orange
+      case 'Shotgun':
+        return { color: 0xff4400, useFireTexture: true }; // Bright red-orange
+      case 'Pistol':
+        return { color: 0x00ffff, useFireTexture: false }; // Bright cyan
+      case 'Tec9':
+        return { color: 0x00ffaa, useFireTexture: false }; // Bright green-cyan
+      case 'Scar':
+        return { color: 0xffaa00, useFireTexture: true }; // Bright orange
+      default:
+        return { color: 0x00ffff, useFireTexture: false }; // Default bright cyan
+    }
+  }
+
   private waveComplete(): void {
     this.gameState.waveInProgress = false;
     this.gameState.betweenWaves = true;
@@ -406,7 +436,7 @@ export class Game {
 
       if (shotFired) {
         this.gameState.shotsFired++;
-        const shootOrigin = this.camera.position.clone();
+        const muzzlePosition = this.weaponSystem.getMuzzleWorldPosition();
         
         // Handle shotgun pellets or single shot
         if (directions && directions.length > 1) {
@@ -416,7 +446,7 @@ export class Game {
           // Create tracer lines for all pellets (visual spray pattern)
           const impacts: THREE.Vector3[] = [];
           directions.forEach(dir => {
-            const ray = new THREE.Raycaster(shootOrigin, dir);
+            const ray = new THREE.Raycaster(muzzlePosition, dir);
             const intersects = ray.intersectObjects(
               [...this.arena.arenaObjects.map(obj => obj.mesh), ...this.enemyManager.getEnemies().map(e => e.mesh)],
               false
@@ -426,9 +456,10 @@ export class Game {
             }
           });
           
-          // Show pellet spread with tracers (orange for shotgun)
+          // Show pellet spread with tracers (weapon-specific color)
           if (impacts.length > 0) {
-            this.bulletTracerSystem.createMultipleTracers(shootOrigin, impacts, 0xff6600);
+            const tracerProps = this.getTracerProperties();
+            this.bulletTracerSystem.createMultipleTracers(muzzlePosition, impacts, tracerProps.color, tracerProps.useFireTexture);
           }
         } else {
           // Single projectile weapon
@@ -503,7 +534,7 @@ export class Game {
   private handleShooting(direction: THREE.Vector3, isPellet: boolean = false): void {
     const raycaster = new THREE.Raycaster(this.camera.position.clone(), direction);
     let hitEnemy = false;
-    const shootOrigin = this.camera.position.clone();
+    const muzzlePosition = this.weaponSystem.getMuzzleWorldPosition();
 
     this.enemyManager.getEnemies().forEach((enemy) => {
       const headBox = new THREE.Box3().setFromObject(enemy.head);
@@ -533,10 +564,12 @@ export class Game {
         
         // Bullet tracer to hit point (pellets handled separately)
         if (!isPellet) {
+          const tracerProps = this.getTracerProperties();
           this.bulletTracerSystem.createTracer(
-            shootOrigin,
+            muzzlePosition,
             hitPosition,
-            killed ? 0xffff00 : 0x00ffff
+            killed ? 0xffff00 : tracerProps.color, // Yellow for kills, weapon color otherwise
+            killed ? false : tracerProps.useFireTexture // No texture for kill tracers (pure yellow)
           );
         }
 
@@ -592,7 +625,8 @@ export class Game {
         
         // Bullet tracer handled separately for pellets
         if (!isPellet) {
-          this.bulletTracerSystem.createTracer(shootOrigin, hitPoint, 0x00ddff);
+          const tracerProps = this.getTracerProperties();
+          this.bulletTracerSystem.createTracer(muzzlePosition, hitPoint, tracerProps.color, tracerProps.useFireTexture);
         }
       }
     }

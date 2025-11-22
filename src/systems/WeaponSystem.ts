@@ -967,6 +967,21 @@ export class WeaponSystem {
     this.weaponGroup.rotation.z += (targetRotZ - this.weaponGroup.rotation.z) * lerpSpeed * delta;
   }
 
+  /**
+   * Get the world position of the weapon's muzzle for bullet tracer origin
+   * Uses the actual muzzle flash position from weapon configuration
+   */
+  public getMuzzleWorldPosition(): THREE.Vector3 {
+    // Update the weapon group's world matrix to get accurate positions
+    this.weaponGroup.updateMatrixWorld(true);
+    
+    // Get the world position of the muzzle flash (which has weapon-specific offset)
+    const worldPos = new THREE.Vector3();
+    this.muzzleFlash.getWorldPosition(worldPos);
+    
+    return worldPos;
+  }
+
   public reset(): void {
     const config = WEAPON_CONFIG[this.currentWeaponType];
     this.currentMag = config.magSize;
