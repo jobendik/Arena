@@ -11,6 +11,7 @@ export interface SmokeParticle {
 
 export class WeaponSystem {
   public currentWeaponType: WeaponType = WeaponType.AK47;
+  public lastWeaponType: WeaponType = WeaponType.Pistol;
   private weapons: Record<WeaponType, { mag: number; reserve: number }>;
 
   public isReloading = false;
@@ -41,6 +42,13 @@ export class WeaponSystem {
   public weaponSwayY = 0;
   public sprintBlend = 0;
   public reloadBlend = 0;
+
+  // Weapon Switching
+  public switchState: 'idle' | 'switching_out' | 'switching_in' = 'idle';
+  public switchTimer = 0;
+  public switchDuration = 0.2; // seconds
+  private pendingWeaponIndex = -1;
+  private lastEmptySoundTime = 0;
 
   // Smoke
   public smokeParticles: SmokeParticle[] = [];
@@ -171,11 +179,31 @@ export class WeaponSystem {
     const types = Object.values(WeaponType);
     if (index >= 0 && index < types.length) {
       const newType = types[index];
-      if (newType !== this.currentWeaponType && !this.isReloading) {
-        this.currentWeaponType = newType;
-        this.resetWeaponState();
-        console.log(`Switched to ${WEAPON_CONFIG[newType].name}`);
+      if (newType !== this.currentWeaponType) {
+        // Cancel reload if active
+        if (this.isReloading) {
+          this.isReloading = false;
+          this.reloadTimer = 0;
+          if (this.reloadSound.isPlaying) this.reloadSound.stop();
+        }
+
+        if (this.switchState === 'idle') {
+          this.pendingWeaponIndex = index;
+          this.switchState = 'switching_out';
+          this.switchTimer = 0;
+        } else {
+          // If already switching, just update the pending target
+          this.pendingWeaponIndex = index;
+        }
       }
+    }
+  }
+
+  public toggleLastWeapon(): void {
+    const types = Object.values(WeaponType);
+    const index = types.indexOf(this.lastWeaponType);
+    if (index !== -1) {
+      this.switchWeapon(index);
     }
   }
 
@@ -570,6 +598,19 @@ export class WeaponSystem {
     return group;
   }
 
+  private playEmptySound(): void {
+    if (this.cockSound.isPlaying) this.cockSound.stop();
+    // Use cock sound or reload sound
+    const config = WEAPON_CONFIG[this.currentWeaponType];
+    const sound = config.audio.cock || config.audio.reload;
+    if (sound && this.audioBuffers[sound]) {
+      this.cockSound.setBuffer(this.audioBuffers[sound]);
+      this.cockSound.setVolume(0.3);
+      this.cockSound.setPlaybackRate(3.0); // Very fast for a click
+      this.cockSound.play();
+    }
+  }
+
   public canShoot(playerPowerup: string | null): boolean {
     if (this.isReloading || this.currentMag <= 0) return false;
 
@@ -590,6 +631,19 @@ export class WeaponSystem {
     playerIsSprinting: boolean,
     playerVelocity: THREE.Vector3
   ): { direction: THREE.Vector3; shotFired: boolean; directions?: THREE.Vector3[] } {
+    if (this.isReloading) {
+      return { direction: new THREE.Vector3(), shotFired: false };
+    }
+
+    if (this.currentMag <= 0) {
+      const now = performance.now();
+      if (now - this.lastEmptySoundTime > 250) {
+        this.playEmptySound();
+        this.lastEmptySoundTime = now;
+      }
+      return { direction: new THREE.Vector3(), shotFired: false };
+    }
+
     if (!this.canShoot(null)) {
       return { direction: new THREE.Vector3(), shotFired: false };
     }
@@ -638,6 +692,11 @@ export class WeaponSystem {
     this.triggerMuzzleFlash();
     this.triggerScreenEffects();
     this.spawnSmoke();
+
+    // Trigger shell ejection
+    if (this.onShellEject) {
+      this.onShellEject(this.getEjectionPortPosition(), this.getEjectionDirection());
+    }
 
     this.shotsFiredInBurst++;
 
@@ -920,6 +979,39 @@ export class WeaponSystem {
     const targetReload = this.isReloading ? 1 : 0;
     this.reloadBlend += (targetReload - this.reloadBlend) * cfg.reloadLerpSpeed * delta;
 
+    // Switch animation logic
+    if (this.switchState === 'switching_out') {
+      this.switchTimer += delta;
+      if (this.switchTimer >= this.switchDuration) {
+        // Perform switch
+        this.lastWeaponType = this.currentWeaponType;
+        const types = Object.values(WeaponType);
+        this.currentWeaponType = types[this.pendingWeaponIndex];
+        this.resetWeaponState();
+        console.log(`Switched to ${WEAPON_CONFIG[this.currentWeaponType].name}`);
+
+        // Play deploy sound
+        const config = WEAPON_CONFIG[this.currentWeaponType];
+        const deploySound = config.audio.cock || config.audio.load || config.audio.reload;
+
+        if (deploySound && this.audioBuffers[deploySound]) {
+          if (this.cockSound.isPlaying) this.cockSound.stop();
+          this.cockSound.setBuffer(this.audioBuffers[deploySound]);
+          this.cockSound.setVolume(0.5);
+          this.cockSound.setPlaybackRate(1.2); // Faster for deploy
+          this.cockSound.play();
+        }
+
+        this.switchState = 'switching_in';
+        this.switchTimer = 0;
+      }
+    } else if (this.switchState === 'switching_in') {
+      this.switchTimer += delta;
+      if (this.switchTimer >= this.switchDuration) {
+        this.switchState = 'idle';
+      }
+    }
+
     // Update smoke
     for (let i = this.smokeParticles.length - 1; i >= 0; i--) {
       const smoke = this.smokeParticles[i];
@@ -969,8 +1061,19 @@ export class WeaponSystem {
     // Reload offset
     targetY -= cfg.reloadDipY * this.reloadBlend;
 
-    // Rotations
-    let targetRotX = -this.weaponKickRotX + (cfg.reloadRotX * this.reloadBlend);
+    // Switch offset
+    let switchOffset = 0;
+    if (this.switchState === 'switching_out') {
+      switchOffset = this.switchTimer / this.switchDuration; // 0 to 1
+    } else if (this.switchState === 'switching_in') {
+      switchOffset = 1 - (this.switchTimer / this.switchDuration); // 1 to 0
+    }
+    // Ease out cubic
+    switchOffset = 1 - Math.pow(1 - switchOffset, 3);
+    
+    targetY -= switchOffset * 0.3; // Dip down
+    let targetRotX = -this.weaponKickRotX + (cfg.reloadRotX * this.reloadBlend) + (switchOffset * Math.PI / 6); // Rotate down
+
     let targetRotZ = (cfg.sprintRotZ * this.sprintBlend);
 
     // Smooth lerp to target
@@ -995,6 +1098,26 @@ export class WeaponSystem {
     this.muzzleFlash.getWorldPosition(worldPos);
     
     return worldPos;
+  }
+
+  // Shell Ejection
+  private onShellEject?: (position: THREE.Vector3, direction: THREE.Vector3) => void;
+
+  public setShellEjectCallback(callback: (position: THREE.Vector3, direction: THREE.Vector3) => void): void {
+    this.onShellEject = callback;
+  }
+
+  private getEjectionPortPosition(): THREE.Vector3 {
+    // Approximate ejection port on the right side of the weapon
+    const offset = new THREE.Vector3(0.15, 0.05, -0.2);
+    return offset.applyMatrix4(this.weaponGroup.matrixWorld);
+  }
+
+  private getEjectionDirection(): THREE.Vector3 {
+    // Eject to the right and slightly up/back
+    const dir = new THREE.Vector3(0.8 + Math.random() * 0.4, 0.5 + Math.random() * 0.2, 0.2);
+    dir.applyQuaternion(this.camera.quaternion); // Use camera rotation as base
+    return dir.normalize();
   }
 
   public reset(): void {

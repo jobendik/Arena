@@ -17,6 +17,10 @@ export interface PlayerConfig {
   stepHeight: number;
   staminaDrain: number;
   staminaRegen: number;
+  slideSpeed: number;
+  slideDuration: number;
+  slideFriction: number;
+  slideCooldown: number;
 }
 
 export interface CameraConfig {
@@ -60,6 +64,11 @@ export interface WeaponStats {
   reloadTime: number;
   automatic: boolean;
   pelletCount?: number; // For shotguns - number of pellets per shot
+  falloff?: {
+    startDistance: number;
+    endDistance: number;
+    minDamage: number;
+  };
   audio: {
     fire: string;
     reload: string;

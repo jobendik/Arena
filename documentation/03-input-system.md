@@ -1,7 +1,7 @@
 # 03 - INPUT SYSTEM
 
 **Priority**: 🔴 CRITICAL - Foundation System  
-**Status**: ⬜ Not Started  
+**Status**: 🟡 In Progress  
 **Dependencies**: None (foundational)  
 **Estimated Complexity**: Medium  
 **Time Estimate**: 4-6 hours
@@ -35,68 +35,68 @@ The input system handles all player input - keyboard, mouse, gamepad - and makes
 ### Phase 1: Input Architecture (Priority: Immediate)
 
 #### Input Manager Setup
-- [ ] Create InputManager singleton
-- [ ] Initialize input systems (keyboard, mouse, gamepad)
-- [ ] Create input action map structure
-- [ ] Set up default bindings
-- [ ] Test: Input manager initializes
+- [x] Create InputManager singleton
+- [x] Initialize input systems (keyboard, mouse)
+- [x] Create input action map structure
+- [x] Set up default bindings (Hardcoded for now)
+- [x] Test: Input manager initializes
 
 #### Action Mapping System
-- [ ] Define all game actions (move, jump, fire, reload, etc.)
-- [ ] Create action → key binding map
-- [ ] Support multiple keys per action
-- [ ] Implement action query methods (isPressed, wasPressed, getValue)
-- [ ] Test: Actions map to keys correctly
+- [x] Define all game actions (move, jump, fire, reload, etc.)
+- [x] Create action → key binding map
+- [x] Support multiple keys per action
+- [x] Implement action query methods (isPressed, wasPressed, getValue)
+- [x] Test: Actions map to keys correctly
 
 ### Phase 2: Keyboard Input (Priority: Immediate)
 
 #### Key Detection
-- [ ] Capture all keyboard events
-- [ ] Track key down states
-- [ ] Track key up events
+- [x] Capture all keyboard events
+- [x] Track key down states
+- [x] Track key up events
 - [ ] Track key held duration
-- [ ] Test: All keys register
+- [x] Test: All keys register
 
 #### Movement Keys
-- [ ] Map WASD to movement actions
-- [ ] Support arrow keys as alternative
-- [ ] Normalize diagonal input
-- [ ] Test: Movement input works
+- [x] Map WASD to movement actions
+- [x] Support arrow keys as alternative
+- [x] Normalize diagonal movement
+- [x] Test: Movement input works
 
 #### Action Keys
-- [ ] Map space to jump
-- [ ] Map shift to sprint
-- [ ] Map R to reload
-- [ ] Map E to interact
-- [ ] Map 1-9 to weapon slots
-- [ ] Map Q to weapon toggle
+- [x] Map space to jump
+- [x] Map shift to sprint
+- [x] Map R to reload
+- [x] Map E to interact
+- [x] Map 1-9 to weapon slots
+- [ ] Map Q to weapon toggle (Supported via rebinding)
 - [ ] Map G to grenade
 - [ ] Map F to ability
-- [ ] Map Tab to scoreboard
-- [ ] Map Escape to pause
-- [ ] Test: All action keys work
+- [x] Map Tab to scoreboard
+- [x] Map Escape to pause
+- [x] Test: All action keys work
 
 ### Phase 3: Mouse Input (Priority: Immediate)
 
 #### Mouse Movement
-- [ ] Capture raw mouse delta
-- [ ] No smoothing or acceleration
-- [ ] Track mouse position
+- [x] Capture raw mouse delta
+- [x] No smoothing or acceleration
+- [x] Track mouse position
 - [ ] Clamp to screen bounds (menu mode)
-- [ ] Test: Mouse movement is 1:1
+- [x] Test: Mouse movement is 1:1
 
 #### Mouse Buttons
-- [ ] Left click → Primary fire
-- [ ] Right click → ADS/Secondary
+- [x] Left click → Primary fire
+- [x] Right click → ADS/Secondary
 - [ ] Middle click → Ping/Mark (optional)
 - [ ] Mouse 4/5 → Custom actions
-- [ ] Test: All buttons register
+- [x] Test: All buttons register
 
 #### Mouse Wheel
-- [ ] Scroll up → Next weapon
-- [ ] Scroll down → Previous weapon
+- [x] Scroll up → Next weapon
+- [x] Scroll down → Previous weapon
 - [ ] Alternative bindings for zoom/abilities
-- [ ] Test: Scroll wheel works
+- [x] Test: Scroll wheel works
 
 ### Phase 4: Gamepad Support (Priority: Medium)
 

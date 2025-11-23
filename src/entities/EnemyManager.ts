@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { ENEMY_TYPES } from '../config/gameConfig';
+import { DamageInfo } from '../core/DamageTypes';
 
 export interface Enemy {
   mesh: THREE.Group;
@@ -358,9 +359,29 @@ export class EnemyManager {
     });
   }
 
-  public damageEnemy(enemy: Enemy, damage: number, isHeadshot: boolean): boolean {
-    enemy.health -= isHeadshot ? damage * 2 : damage;
+  public damageEnemy(enemy: Enemy, info: DamageInfo | number, isHeadshot: boolean = false): boolean {
+    let damage = 0;
+    let headshot = isHeadshot;
+
+    if (typeof info === 'number') {
+      damage = info;
+    } else {
+      damage = info.amount;
+      if (info.hitLocation === 'head') {
+        headshot = true;
+      }
+    }
+
+    enemy.health -= headshot ? damage * 2 : damage;
     
+    // Apply knockback if present
+    if (typeof info !== 'number' && info.knockbackForce && info.sourcePosition) {
+      const knockbackDir = enemy.mesh.position.clone().sub(info.sourcePosition).normalize();
+      knockbackDir.y = 0.5; // Add some lift
+      // Simple knockback simulation - in a real physics system we'd apply force
+      enemy.mesh.position.add(knockbackDir.multiplyScalar(info.knockbackForce * 0.1));
+    }
+
     // Play hurt sound if still alive, death sound if killed
     if (enemy.health <= 0) {
       this.playDeathSound(enemy);

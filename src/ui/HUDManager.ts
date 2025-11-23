@@ -21,6 +21,10 @@ export class HUDManager {
   private crosshairRight: HTMLElement;
   private killIcon: HTMLElement;
   private headshotIcon: HTMLElement;
+  private multiKillDisplay: HTMLElement;
+  private streakDisplay: HTMLElement;
+  private multiKillTimeout: number | null = null;
+  private streakTimeout: number | null = null;
   
   // Vignette system
   private vignetteImpactFlash: HTMLElement;
@@ -53,6 +57,8 @@ export class HUDManager {
     this.crosshairRight = document.getElementById('cross-right')!;
     this.killIcon = document.getElementById('kill-icon')!;
     this.headshotIcon = document.getElementById('headshot-icon')!;
+    this.multiKillDisplay = document.getElementById('multikill-display')!;
+    this.streakDisplay = document.getElementById('streak-display')!;
     
     // Vignette system
     this.vignetteImpactFlash = document.getElementById('vignette-impact-flash')!;
@@ -384,5 +390,44 @@ export class HUDManager {
     setTimeout(() => {
       this.headshotIcon.style.opacity = '0';
     }, 500);
+  }
+
+  public showMultiKill(count: number): void {
+    let text = '';
+    let scale = 1.0;
+    let color = '#ffcc00';
+    
+    switch (count) {
+      case 2: text = 'DOUBLE KILL'; scale = 1.2; break;
+      case 3: text = 'TRIPLE KILL'; scale = 1.4; color = '#ff6600'; break;
+      case 4: text = 'QUAD KILL'; scale = 1.6; color = '#ff0000'; break;
+      case 5: text = 'PENTA KILL'; scale = 1.8; color = '#ff00ff'; break;
+      default: text = 'GODLIKE'; scale = 2.0; color = '#00ffff'; break;
+    }
+
+    this.multiKillDisplay.textContent = text;
+    this.multiKillDisplay.style.color = color;
+    this.multiKillDisplay.style.opacity = '1';
+    this.multiKillDisplay.style.transform = `translate(-50%, -50%) scale(${scale})`;
+
+    if (this.multiKillTimeout) clearTimeout(this.multiKillTimeout);
+    this.multiKillTimeout = window.setTimeout(() => {
+      this.multiKillDisplay.style.opacity = '0';
+      this.multiKillDisplay.style.transform = 'translate(-50%, -50%) scale(1)';
+    }, 2000);
+  }
+
+  public showHitStreak(count: number): void {
+    if (count < 3) return; // Show from 3 hits
+
+    this.streakDisplay.textContent = `${count} HIT STREAK`;
+    this.streakDisplay.style.opacity = '1';
+    this.streakDisplay.style.transform = 'translate(-50%, -50%) scale(1.2)';
+
+    if (this.streakTimeout) clearTimeout(this.streakTimeout);
+    this.streakTimeout = window.setTimeout(() => {
+      this.streakDisplay.style.opacity = '0';
+      this.streakDisplay.style.transform = 'translate(-50%, -50%) scale(1)';
+    }, 2000);
   }
 }

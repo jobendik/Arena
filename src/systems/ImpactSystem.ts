@@ -13,6 +13,8 @@ interface ImpactAudioBuffers {
   bodyImpacts: AudioBuffer[];
   deathImpact?: AudioBuffer;
   hitImpact?: AudioBuffer;
+  bulletWhiz?: AudioBuffer;
+  shellDrop?: AudioBuffer;
   surfaceImpacts: {
     [key in SurfaceMaterial]?: AudioBuffer[];
   };
@@ -57,6 +59,16 @@ export class ImpactSystem {
     audioLoader.load('assets/audio/impact/Hit-Impact.mp3_f966c566.mp3', (buffer) => {
       this.audioBuffers.hitImpact = buffer;
     }, undefined, (err) => console.warn('Failed to load hit impact:', err));
+
+    // Bullet Whiz (using a tail sound as placeholder)
+    audioLoader.load('assets/audio/weapons/Tec-9-Tail.mp3_af6632ea.mp3', (buffer) => {
+      this.audioBuffers.bulletWhiz = buffer;
+    }, undefined, (err) => console.warn('Failed to load bullet whiz:', err));
+
+    // Shell Drop (using light metal impact)
+    audioLoader.load('assets/audio/impact/Impact-Iron-Light.mp3_98124b45.mp3', (buffer) => {
+      this.audioBuffers.shellDrop = buffer;
+    }, undefined, (err) => console.warn('Failed to load shell drop:', err));
 
     // Surface impacts - organized by material
     const surfaceImpacts = {
@@ -155,6 +167,56 @@ export class ImpactSystem {
     sound.setBuffer(this.audioBuffers.hitImpact);
     sound.setVolume(volume * 1.2);
     sound.play();
+  }
+
+  /**
+   * Play bullet whiz sound for near misses
+   * High pitch, fast playback to simulate supersonic crack
+   */
+  public playBulletWhiz(position: THREE.Vector3): void {
+    if (!this.audioBuffers.bulletWhiz) return;
+
+    const sound = new THREE.PositionalAudio(this.audioListener);
+    sound.setBuffer(this.audioBuffers.bulletWhiz);
+    sound.setRefDistance(5);
+    sound.setVolume(0.4);
+    sound.setPlaybackRate(1.5 + Math.random() * 0.5); // Vary pitch
+    sound.setLoop(false);
+    
+    const temp = new THREE.Object3D();
+    temp.position.copy(position);
+    this.scene.add(temp);
+    temp.add(sound);
+    
+    sound.play();
+    sound.onEnded = () => {
+      this.scene.remove(temp);
+    };
+  }
+
+  /**
+   * Play shell casing drop sound
+   * Tiny, metallic clink
+   */
+  public playShellDrop(position: THREE.Vector3): void {
+    if (!this.audioBuffers.shellDrop) return;
+
+    const sound = new THREE.PositionalAudio(this.audioListener);
+    sound.setBuffer(this.audioBuffers.shellDrop);
+    sound.setRefDistance(3);
+    sound.setVolume(0.3);
+    sound.setPlaybackRate(2.0 + Math.random() * 0.5); // High pitch for small object
+    sound.setLoop(false);
+    
+    const temp = new THREE.Object3D();
+    temp.position.copy(position);
+    this.scene.add(temp);
+    temp.add(sound);
+    
+    sound.play();
+    sound.onEnded = () => {
+      this.scene.remove(temp);
+    };
   }
 
   /**

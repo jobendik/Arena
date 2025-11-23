@@ -1,15 +1,21 @@
 import * as THREE from 'three';
 import { PLAYER_CONFIG } from '../config/gameConfig';
+import { Damageable, DamageInfo, DamageType } from '../core/DamageTypes';
 
-export class Player {
+export class Player implements Damageable {
   public position: THREE.Vector3;
   public velocity: THREE.Vector3;
   public rotation = { x: 0, y: 0 };
   public health: number;
+  public maxHealth: number;
   public armor: number;
   public stamina: number;
   public onGround = true;
   public isSprinting = false;
+  public isSliding = false;
+  public slideTimer = 0;
+  public slideCooldownTimer = 0;
+  public slideDirection = new THREE.Vector3();
   public coyoteTimer = 0;
   public jumpBufferTimer = 0;
   public isJumping = false;
@@ -41,7 +47,8 @@ export class Player {
     this.position = new THREE.Vector3(0, PLAYER_CONFIG.height, 0);
     this.velocity = new THREE.Vector3();
     this.prevVelocity = new THREE.Vector3();
-    this.health = PLAYER_CONFIG.maxHealth;
+    this.maxHealth = PLAYER_CONFIG.maxHealth;
+    this.health = this.maxHealth;
     this.armor = 0;
     this.stamina = PLAYER_CONFIG.maxStamina;
     this.currentFOV = 75; // Will be updated by camera config
@@ -104,8 +111,13 @@ export class Player {
     }, undefined, (error) => console.warn('Failed to load heartbeat sound', error));
   }
 
-  public takeDamage(damage: number): boolean {
-    let remaining = damage;
+  public isDead(): boolean {
+    return this.health <= 0;
+  }
+
+  public takeDamage(info: DamageInfo | number): void {
+    const amount = typeof info === 'number' ? info : info.amount;
+    let remaining = amount;
 
     if (this.armor > 0) {
       const absorbed = Math.min(this.armor, remaining);
@@ -117,8 +129,6 @@ export class Player {
       this.health -= remaining;
       this.playHurtSound();
     }
-
-    return this.health <= 0;
   }
 
   private playFootstepSound(): void {
@@ -277,11 +287,30 @@ export class Player {
     }
   }
 
+  private handleLanding(landingSpeed: number): void {
+    if (landingSpeed > 5) {
+      this.landingImpact = Math.min(landingSpeed / 20, 1);
+      this.playLandSound();
+      
+      // Fall Damage
+      if (landingSpeed > 18) { // Threshold for damage (approx 6-7m drop)
+        const damage = Math.floor((landingSpeed - 18) * 5);
+        if (damage > 0) {
+          this.takeDamage({
+            amount: damage,
+            type: DamageType.Fall
+          });
+        }
+      }
+    }
+  }
+
   public update(
     delta: number,
     inputDir: THREE.Vector3,
     wantsToSprint: boolean,
     wantsJump: boolean,
+    wantsCrouch: boolean,
     canCutJump: boolean,
     arenaObjects: Array<{ mesh: THREE.Mesh; box: THREE.Box3 }>
   ): void {
@@ -293,8 +322,33 @@ export class Player {
       inputDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.rotation.y);
     }
 
+    // Slide Cooldown
+    if (this.slideCooldownTimer > 0) {
+      this.slideCooldownTimer -= delta;
+    }
+
+    // Slide Initiation
+    if (wantsCrouch && this.isSprinting && this.onGround && this.slideCooldownTimer <= 0 && !this.isSliding) {
+      this.isSliding = true;
+      this.slideTimer = PLAYER_CONFIG.slideDuration;
+      this.slideDirection.copy(this.velocity).normalize();
+      // Boost speed slightly on slide start
+      this.velocity.add(this.slideDirection.clone().multiplyScalar(2));
+      // Play slide sound (TODO)
+    }
+
+    // Slide State Management
+    if (this.isSliding) {
+      this.slideTimer -= delta;
+      if (this.slideTimer <= 0 || this.velocity.length() < PLAYER_CONFIG.walkSpeed * 0.5) {
+        this.isSliding = false;
+        this.slideCooldownTimer = PLAYER_CONFIG.slideCooldown;
+      }
+    }
+
     // Sprint and stamina
-    this.isSprinting = wantsToSprint && this.onGround && this.stamina > 0;
+    // Can't sprint while sliding, but we check wantsToSprint for slide initiation
+    this.isSprinting = wantsToSprint && this.onGround && this.stamina > 0 && !this.isSliding;
     if (this.isSprinting) {
       this.stamina -= PLAYER_CONFIG.staminaDrain * delta;
       if (this.stamina < 0) {
@@ -306,21 +360,34 @@ export class Player {
     }
 
     // Movement
-    const baseSpeed = this.isSprinting ? PLAYER_CONFIG.sprintSpeed : PLAYER_CONFIG.walkSpeed;
-    const targetSpeed = baseSpeed * this.speedMultiplier;
+    let targetSpeed = PLAYER_CONFIG.walkSpeed;
+    if (this.isSprinting) targetSpeed = PLAYER_CONFIG.sprintSpeed;
+    targetSpeed *= this.speedMultiplier;
 
     const isGrounded = this.onGround;
-    const accel = isGrounded ? PLAYER_CONFIG.groundAccel : PLAYER_CONFIG.airAccel;
-    const decel = isGrounded ? PLAYER_CONFIG.groundDecel : PLAYER_CONFIG.airDecel;
-
     const horizVel = new THREE.Vector2(this.velocity.x, this.velocity.z);
 
-    if (hasInput) {
-      const targetVel = new THREE.Vector2(inputDir.x, inputDir.z).multiplyScalar(targetSpeed);
-      horizVel.lerp(targetVel, accel * delta);
+    if (this.isSliding) {
+      // Slide physics
+      const slideSpeed = PLAYER_CONFIG.slideSpeed * (this.slideTimer / PLAYER_CONFIG.slideDuration);
+      const targetSlideVel = new THREE.Vector2(this.slideDirection.x, this.slideDirection.z).multiplyScalar(slideSpeed);
+      
+      // Apply friction/decay
+      horizVel.lerp(targetSlideVel, PLAYER_CONFIG.slideFriction * delta);
+      
+      // Allow slight steering? (Optional, keeping it locked for now as per "lock player to slide direction")
     } else {
-      const decayFactor = Math.exp(-decel * delta);
-      horizVel.multiplyScalar(decayFactor);
+      // Normal movement
+      const accel = isGrounded ? PLAYER_CONFIG.groundAccel : PLAYER_CONFIG.airAccel;
+      const decel = isGrounded ? PLAYER_CONFIG.groundDecel : PLAYER_CONFIG.airDecel;
+
+      if (hasInput) {
+        const targetVel = new THREE.Vector2(inputDir.x, inputDir.z).multiplyScalar(targetSpeed);
+        horizVel.lerp(targetVel, accel * delta);
+      } else {
+        const decayFactor = Math.exp(-decel * delta);
+        horizVel.multiplyScalar(decayFactor);
+      }
     }
 
     this.velocity.x = horizVel.x;
@@ -331,7 +398,7 @@ export class Player {
     this.headBobTime += delta * speed * 2;
 
     // Footstep sounds
-    if (this.onGround && speed > 1) {
+    if (this.onGround && speed > 1 && !this.isSliding) {
       const footstepInterval = this.isSprinting ? 0.3 : 0.4;
       this.lastFootstepTime += delta;
       if (this.lastFootstepTime >= footstepInterval) {
@@ -358,6 +425,14 @@ export class Player {
       this.coyoteTimer = 0;
       this.jumpBufferTimer = 0;
       this.playJumpSound();
+      
+      // Slide Jump: Cancel slide but keep momentum
+      if (this.isSliding) {
+        this.isSliding = false;
+        this.slideCooldownTimer = PLAYER_CONFIG.slideCooldown;
+        // Optional: Add jump boost from slide
+        // this.velocity.add(this.slideDirection.clone().multiplyScalar(2));
+      }
     }
 
     if (canCutJump && this.canCutJump && this.velocity.y > 0) {
@@ -394,10 +469,12 @@ export class Player {
         const heightDiff = box.max.y - (newPos.y - PLAYER_CONFIG.height);
         if (heightDiff > 0 && heightDiff < stepHeight && this.velocity.y <= 0) {
           newPos.y = box.max.y + PLAYER_CONFIG.height;
+          this.handleLanding(Math.abs(this.prevVelocity.y));
           this.velocity.y = 0;
           this.onGround = true;
         } else if (playerBox.max.y > box.max.y && this.velocity.y < 0) {
           newPos.y = box.max.y + PLAYER_CONFIG.height;
+          this.handleLanding(Math.abs(this.prevVelocity.y));
           this.velocity.y = 0;
           this.onGround = true;
         } else if (playerBox.min.y < box.min.y && this.velocity.y > 0) {
@@ -421,10 +498,7 @@ export class Player {
     // Ground collision
     if (newPos.y <= PLAYER_CONFIG.height) {
       const landingSpeed = Math.abs(this.prevVelocity.y);
-      if (landingSpeed > 5) {
-        this.landingImpact = Math.min(landingSpeed / 20, 1);
-        this.playLandSound();
-      }
+      this.handleLanding(landingSpeed);
       newPos.y = PLAYER_CONFIG.height;
       this.velocity.y = 0;
       this.onGround = true;
@@ -443,6 +517,9 @@ export class Player {
     this.powerupTimer = 0;
     this.damageMultiplier = 1;
     this.speedMultiplier = 1;
+    this.isSliding = false;
+    this.slideTimer = 0;
+    this.slideCooldownTimer = 0;
     this.coyoteTimer = 0;
     this.jumpBufferTimer = 0;
   }

@@ -19,6 +19,10 @@ export const PLAYER_CONFIG: PlayerConfig = {
   stepHeight: 0.5,
   staminaDrain: 20,
   staminaRegen: 30,
+  slideSpeed: 18,
+  slideDuration: 1.0,
+  slideFriction: 2.5,
+  slideCooldown: 1.0,
 };
 
 export const CAMERA_CONFIG: CameraConfig = {
@@ -97,6 +101,11 @@ export const WEAPON_CONFIG: WeaponConfig = {
     reserveAmmo: 90,
     reloadTime: 2.0,
     automatic: true,
+    falloff: {
+      startDistance: 20,
+      endDistance: 50,
+      minDamage: 15
+    },
     audio: {
       fire: BASE_AUDIO_PATH + 'AK47-Fire.mp3_aad0f6c9.mp3',
       reload: BASE_AUDIO_PATH + 'LMG-Reload.mp3',
@@ -136,6 +145,11 @@ export const WEAPON_CONFIG: WeaponConfig = {
     reserveAmmo: 30,
     reloadTime: 2.8,
     automatic: false,
+    falloff: {
+      startDistance: 100,
+      endDistance: 200,
+      minDamage: 95
+    },
     audio: {
       fire: BASE_AUDIO_PATH + 'AWP-Fire.mp3_1b838826.mp3',
       reload: BASE_AUDIO_PATH + 'Sniper-Reload.mp3_dbe31ae3.mp3',
@@ -334,6 +348,11 @@ export const WEAPON_CONFIG: WeaponConfig = {
     reloadTime: 2.5,
     automatic: false,
     pelletCount: 8, // Fires 8 pellets in a spread pattern
+    falloff: {
+      startDistance: 5,
+      endDistance: 20,
+      minDamage: 3
+    },
     audio: {
       fire: BASE_AUDIO_PATH + 'Shotgun-Fire.mp3_c4d738ce.mp3',
       reload: BASE_AUDIO_PATH + 'Shotgun-Load.mp3_662a7e0b.mp3',

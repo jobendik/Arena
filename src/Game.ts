@@ -7,12 +7,15 @@ import { PickupSystem } from './systems/PickupSystem';
 import { ImpactSystem } from './systems/ImpactSystem';
 import { DecalSystem } from './systems/DecalSystem';
 import { BulletTracerSystem } from './systems/BulletTracerSystem';
+import { ProjectileSystem } from './systems/ProjectileSystem';
 import { Arena } from './world/Arena';
-import { InputManager } from './core/InputManager';
+import { InputManager, GameAction } from './core/InputManager';
 import { PostProcessing } from './core/PostProcessing';
 import { HUDManager } from './ui/HUDManager';
+import { DamageTextSystem } from './ui/DamageTextSystem';
 import { GameState } from './types';
 import { PLAYER_CONFIG, CAMERA_CONFIG, WEAPON_CONFIG } from './config/gameConfig';
+import { DamageType } from './core/DamageTypes';
 
 export class Game {
   private scene: THREE.Scene;
@@ -28,6 +31,8 @@ export class Game {
   private impactSystem: ImpactSystem;
   private decalSystem: DecalSystem;
   private bulletTracerSystem: BulletTracerSystem;
+  private projectileSystem: ProjectileSystem;
+  private damageTextSystem: DamageTextSystem;
   private arena: Arena;
   private inputManager: InputManager;
   private hudManager: HUDManager;
@@ -35,8 +40,14 @@ export class Game {
   private gameState: GameState;
   private lastTime = 0;
   private gameTime = 0;
-  private pointLights: Array<{ light: THREE.PointLight; baseIntensity: number; phase: number }> = [];
+  private pointLights: { light: THREE.PointLight; baseIntensity: number; phase: number }[] = [];
   private skyMaterial?: THREE.ShaderMaterial;
+
+  // Hit Feedback
+  private multiKillCount = 0;
+  private lastKillTime = 0;
+  private hitStreakCount = 0;
+  
   private respawnSound?: THREE.Audio;
 
   constructor() {
@@ -87,10 +98,21 @@ export class Game {
     this.particleSystem = new ParticleSystem(this.scene);
     this.pickupSystem = new PickupSystem(this.scene, listener, this.arena);
     this.impactSystem = new ImpactSystem(this.scene, listener);
+    
+    // Setup shell ejection
+    this.weaponSystem.setShellEjectCallback((pos, dir) => {
+      this.particleSystem.spawnShellCasing(pos, dir, (hitPos) => {
+        this.impactSystem.playShellDrop(hitPos);
+      });
+    });
+
     this.decalSystem = new DecalSystem(this.scene);
     this.bulletTracerSystem = new BulletTracerSystem(this.scene, this.camera);
-    this.inputManager = new InputManager(CAMERA_CONFIG.mouseSensitivity);
+    this.projectileSystem = new ProjectileSystem(this.scene);
+    this.damageTextSystem = new DamageTextSystem(this.camera);
+    
     this.hudManager = new HUDManager();
+    this.inputManager = new InputManager(CAMERA_CONFIG.mouseSensitivity);
     this.postProcessing = new PostProcessing(this.renderer, this.scene, this.camera);
 
     // Initialize game state
@@ -226,13 +248,23 @@ export class Game {
       this.togglePause();
     });
 
+    this.inputManager.setNextWeaponCallback(() => {
+      this.weaponSystem.scrollWeapon(1);
+      this.hudManager.updateWeaponName(WEAPON_CONFIG[this.weaponSystem.currentWeaponType].name);
+    });
+
+    this.inputManager.setPrevWeaponCallback(() => {
+      this.weaponSystem.scrollWeapon(-1);
+      this.hudManager.updateWeaponName(WEAPON_CONFIG[this.weaponSystem.currentWeaponType].name);
+    });
+
     this.inputManager.setWeaponSelectCallback((index) => {
       this.weaponSystem.switchWeapon(index);
       this.hudManager.updateWeaponName(WEAPON_CONFIG[this.weaponSystem.currentWeaponType].name);
     });
 
-    this.inputManager.setScrollCallback((delta) => {
-      this.weaponSystem.scrollWeapon(delta);
+    this.inputManager.setLastWeaponCallback(() => {
+      this.weaponSystem.toggleLastWeapon();
       this.hudManager.updateWeaponName(WEAPON_CONFIG[this.weaponSystem.currentWeaponType].name);
     });
 
@@ -420,12 +452,13 @@ export class Game {
 
     // Input
     const inputDir = this.inputManager.getMovementInput();
-    const wantsToSprint = this.inputManager.isKeyPressed('ShiftLeft') && inputDir.length() > 0;
+    const wantsToSprint = this.inputManager.isActionPressed(GameAction.Sprint) && inputDir.length() > 0;
     const wantsJump = this.player.jumpBufferTimer > 0;
-    const canCutJump = !this.inputManager.isKeyPressed('Space') && this.player.canCutJump;
+    const wantsCrouch = this.inputManager.isActionPressed(GameAction.Crouch);
+    const canCutJump = !this.inputManager.isActionPressed(GameAction.Jump) && this.player.canCutJump;
 
     // Update player
-    this.player.update(delta, inputDir, wantsToSprint, wantsJump, canCutJump, this.arena.arenaObjects);
+    this.player.update(delta, inputDir, wantsToSprint, wantsJump, wantsCrouch, canCutJump, this.arena.arenaObjects);
     this.player.updatePowerups(delta);
 
     // Update player rotation from mouse
@@ -435,7 +468,7 @@ export class Game {
     this.inputManager.resetMouseDelta();
 
     // Shooting
-    if (this.inputManager.isMouseButtonPressed(0)) {
+    if (this.inputManager.isActionPressed(GameAction.Fire)) {
       const { direction, shotFired, directions } = this.weaponSystem.shoot(
         this.camera,
         this.player.onGround,
@@ -485,6 +518,8 @@ export class Game {
       this.player.headBobTime
     );
 
+    this.projectileSystem.update(delta, this.arena.arenaObjects.map(obj => obj.mesh));
+
     // Update camera
     this.updateCamera(delta);
 
@@ -500,6 +535,7 @@ export class Game {
     );
     this.decalSystem.update(delta);
     this.bulletTracerSystem.update(delta);
+    this.damageTextSystem.update(delta);
 
     // Update arena
     this.arena.update(this.gameTime);
@@ -555,12 +591,37 @@ export class Game {
       if (hitHead || hitBody) {
         hitEnemy = true;
         this.gameState.shotsHit++;
+        this.hitStreakCount++;
 
         const hitPosition = enemy.mesh.position.clone().add(new THREE.Vector3(0, 1, 0));
 
+        // Calculate damage with falloff
+        const dist = this.player.position.distanceTo(enemy.mesh.position);
+        const weaponConfig = WEAPON_CONFIG[this.weaponSystem.currentWeaponType];
+        let damage = weaponConfig.damage;
+
+        if (weaponConfig.falloff) {
+          const { startDistance, endDistance, minDamage } = weaponConfig.falloff;
+          if (dist > startDistance) {
+            const t = Math.min(1, (dist - startDistance) / (endDistance - startDistance));
+            damage = damage * (1 - t) + minDamage * t;
+          }
+        }
+
         const killed = this.enemyManager.damageEnemy(
           enemy,
-          25 * this.player.damageMultiplier,
+          {
+            amount: damage * this.player.damageMultiplier,
+            type: DamageType.Bullet,
+            hitLocation: hitHead ? 'head' : 'body',
+            instigator: this.player
+          }
+        );
+
+        // Spawn damage number
+        this.damageTextSystem.spawn(
+          hitPosition.clone().add(new THREE.Vector3(0, 0.5, 0)), 
+          damage * this.player.damageMultiplier, 
           hitHead
         );
 
@@ -590,12 +651,26 @@ export class Game {
         if (killed) {
           this.gameState.kills++;
           this.gameState.score += enemy.score;
+          
+          // Multi-kill logic
+          const now = performance.now();
+          if (now - this.lastKillTime < 3000) {
+            this.multiKillCount++;
+          } else {
+            this.multiKillCount = 1;
+          }
+          this.lastKillTime = now;
+
+          if (this.multiKillCount > 1) {
+            this.hudManager.showMultiKill(this.multiKillCount);
+          }
+
           this.impactSystem.playDeathImpact(hitPosition);
           this.particleSystem.spawn(hitPosition, 0x22c55e, 15);
           this.hudManager.showKillIcon(); // Show kill icon
           
           if (enemy.type === 'heavy') {
-            this.particleSystem.spawnExplosion(hitPosition);
+            this.createExplosion(hitPosition, 5, 50);
           }
 
           this.enemyManager.removeEnemy(enemy);
@@ -607,14 +682,23 @@ export class Game {
               enemy.mesh.position.clone()
             );
           }
+        } else {
+            // Non-lethal hit feedback
+            this.impactSystem.playBodyImpact(hitPosition);
+            this.impactSystem.playHitConfirmation();
         }
 
         this.hudManager.showHitmarker(killed);
-        this.hudManager.showHitFeedback(killed, hitHead);
+        
+        if (this.hitStreakCount >= 3) {
+          this.hudManager.showHitStreak(this.hitStreakCount);
+        }
       }
     });
 
     if (!hitEnemy) {
+      this.hitStreakCount = 0;
+      
       // Hit wall/floor - check arena objects for material-based impacts
       const arenaIntersects = raycaster.intersectObjects(
         this.arena.arenaObjects.map(obj => obj.mesh),
@@ -734,7 +818,12 @@ export class Game {
     
     if (!hasObstacleInWay && raycaster.ray.intersectsBox(playerBox)) {
       // ACTUAL HIT - Red indicator with damage
-      const isDead = this.player.takeDamage(enemy.damage);
+      this.player.takeDamage({
+        amount: enemy.damage,
+        type: DamageType.Melee,
+        instigator: enemy
+      });
+      const isDead = this.player.isDead();
       
       // Show RED damage indicator
       this.hudManager.flashDamage(relativeAngle);
@@ -749,6 +838,12 @@ export class Game {
     } else if (!hasObstacleInWay && raycaster.ray.intersectsBox(nearMissBox)) {
       // NEAR MISS - White indicator warning (no damage)
       this.hudManager.showNearMissIndicator(relativeAngle);
+      
+      // Play bullet whiz sound at the closest point on the ray to the player
+      const ray = new THREE.Ray(shootOrigin, dir);
+      const closestPoint = new THREE.Vector3();
+      ray.closestPointToPoint(this.player.position, closestPoint);
+      this.impactSystem.playBulletWhiz(closestPoint);
     }
   }
 
@@ -847,4 +942,45 @@ export class Game {
     this.update(delta);
     this.postProcessing.render();
   };
+
+  private createExplosion(position: THREE.Vector3, radius: number, maxDamage: number): void {
+    this.particleSystem.spawnExplosion(position);
+    
+    // Camera shake based on distance
+    const distToPlayer = this.player.position.distanceTo(position);
+    const shakeIntensity = Math.max(0, 1 - distToPlayer / 20) * 0.5;
+    this.weaponSystem.cameraShake.intensity += shakeIntensity;
+
+    // Damage enemies in radius
+    this.enemyManager.getEnemies().forEach(enemy => {
+      const dist = enemy.mesh.position.distanceTo(position);
+      if (dist < radius) {
+        const damage = maxDamage * (1 - dist / radius);
+        const killed = this.enemyManager.damageEnemy(enemy, {
+          amount: damage,
+          type: DamageType.Explosive,
+          sourcePosition: position,
+          knockbackForce: 10 * (1 - dist / radius)
+        }, false); // Explosions don't count as headshots
+
+        if (killed) {
+          this.gameState.kills++;
+          this.gameState.score += enemy.score;
+          this.enemyManager.removeEnemy(enemy);
+        }
+      }
+    });
+
+    // Damage player in radius
+    if (distToPlayer < radius) {
+      const damage = maxDamage * (1 - distToPlayer / radius);
+      this.player.takeDamage({
+        amount: damage,
+        type: DamageType.Explosive,
+        sourcePosition: position,
+        knockbackForce: 15 * (1 - distToPlayer / radius)
+      });
+      this.hudManager.flashDamage(0); // Flash center
+    }
+  }
 }

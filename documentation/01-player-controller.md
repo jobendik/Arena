@@ -1,7 +1,7 @@
 # 01 - PLAYER CONTROLLER
 
 **Priority**: 🔴 CRITICAL - Foundation System  
-**Status**: ⬜ Not Started  
+**Status**: 🟡 In Progress  
 **Dependencies**: None (foundational)  
 **Estimated Complexity**: High  
 **Time Estimate**: 8-12 hours
@@ -117,138 +117,138 @@ maxSlopeAngle: 45.0
 ### Phase 1: Basic Movement (Priority: Immediate)
 
 #### Character Setup
-- [ ] Create player entity in PlayCanvas scene
-- [ ] Add capsule collider (height: 2.0, radius: 0.4)
-- [ ] Add rigidbody component (or custom physics)
-- [ ] Set up collision layers (player, world, enemies)
-- [ ] Configure mass and drag
-- [ ] Position camera parent entity
+- [x] Create player entity in PlayCanvas scene
+- [x] Add capsule collider (height: 2.0, radius: 0.4)
+- [x] Add rigidbody component (or custom physics)
+- [x] Set up collision layers (player, world, enemies)
+- [x] Configure mass and drag
+- [x] Position camera parent entity
 
 #### Ground Detection
-- [ ] Implement ground raycast (from center, down)
-- [ ] Add ground check with small threshold (0.1 units)
-- [ ] Create ground normal detection
-- [ ] Implement slope angle calculation
-- [ ] Add "isGrounded" state boolean
-- [ ] Implement slope movement adjustment
+- [x] Implement ground raycast (from center, down)
+- [x] Add ground check with small threshold (0.1 units)
+- [x] Create ground normal detection
+- [x] Implement slope angle calculation
+- [x] Add "isGrounded" state boolean
+- [x] Implement slope movement adjustment
 
 #### Basic WASD Movement
-- [ ] Capture input (W/A/S/D or Arrow keys)
-- [ ] Convert input to movement vector
-- [ ] Normalize diagonal movement
-- [ ] Apply movement relative to camera direction
-- [ ] Implement basic velocity application
-- [ ] Test: Player moves in 8 directions
+- [x] Capture input (W/A/S/D or Arrow keys)
+- [x] Convert input to movement vector
+- [x] Normalize diagonal movement
+- [x] Apply movement relative to camera direction
+- [x] Implement basic velocity application
+- [x] Test: Player moves in 8 directions
 
 #### Acceleration & Deceleration
-- [ ] Implement ground acceleration curve
-- [ ] Implement ground deceleration (release keys)
-- [ ] Add friction to stop player completely
-- [ ] Prevent instant stops (feel sluggish check)
-- [ ] Test: Movement feels snappy but controlled
+- [x] Implement ground acceleration curve
+- [x] Implement ground deceleration (release keys)
+- [x] Add friction to stop player completely
+- [x] Prevent instant stops (feel sluggish check)
+- [x] Test: Movement feels snappy but controlled
 
 ### Phase 2: Jump System (Priority: Immediate)
 
 #### Basic Jump
-- [ ] Capture jump input (Space)
-- [ ] Apply upward force on jump
-- [ ] Prevent double jumping (unless designed)
-- [ ] Add jump cooldown (optional, 0.1s)
-- [ ] Test: Player jumps predictably
+- [x] Capture jump input (Space)
+- [x] Apply upward force on jump
+- [x] Prevent double jumping (unless designed)
+- [x] Add jump cooldown (optional, 0.1s)
+- [x] Test: Player jumps predictably
 
 #### Advanced Jump Feel
-- [ ] Implement coyote time (grace period after ledge)
-  - [ ] Track time since left ground
-  - [ ] Allow jump within coyote window
-- [ ] Implement jump buffering
-  - [ ] Track jump input timing
-  - [ ] Execute buffered jump on landing
-- [ ] Implement jump cut
-  - [ ] Detect jump button release
-  - [ ] Apply downward force multiplier
-  - [ ] Allow variable jump height
-- [ ] Test: Jumping feels precise and fair
+- [x] Implement coyote time (grace period after ledge)
+  - [x] Track time since left ground
+  - [x] Allow jump within coyote window
+- [x] Implement jump buffering
+  - [x] Track jump input timing
+  - [x] Execute buffered jump on landing
+- [x] Implement jump cut
+  - [x] Detect jump button release
+  - [x] Apply downward force multiplier
+  - [x] Allow variable jump height
+- [x] Test: Jumping feels precise and fair
 
 #### Gravity & Falling
-- [ ] Apply constant downward gravity
-- [ ] Implement fall multiplier (faster falling)
-- [ ] Add terminal velocity cap
-- [ ] Implement landing detection
-- [ ] Add landing frame (brief immobility optional)
-- [ ] Test: Falling feels weighty not floaty
+- [x] Apply constant downward gravity
+- [x] Implement fall multiplier (faster falling)
+- [x] Add terminal velocity cap
+- [x] Implement landing detection
+- [x] Add landing frame (brief immobility optional)
+- [x] Test: Falling feels weighty not floaty
 
 ### Phase 3: Sprint System (Priority: High)
 
 #### Sprint Mechanics
-- [ ] Capture sprint input (Shift / Toggle)
-- [ ] Increase movement speed multiplier
-- [ ] Smooth speed transition (lerp)
-- [ ] Add sprint start/stop audio hooks
-- [ ] Limit sprint direction (forward only? or omnidirectional?)
-- [ ] Test: Sprint feels faster and intentional
+- [x] Capture sprint input (Shift / Toggle)
+- [x] Increase movement speed multiplier
+- [x] Smooth speed transition (lerp)
+- [x] Add sprint start/stop audio hooks
+- [x] Limit sprint direction (forward only? or omnidirectional?)
+- [x] Test: Sprint feels faster and intentional
 
 #### Sprint FOV (Camera Integration)
-- [ ] Increase FOV by 10-15 degrees
-- [ ] Smooth FOV transition (0.2s)
-- [ ] Return FOV on sprint end
-- [ ] Test: Sprint feels fast without motion sickness
+- [x] Increase FOV by 10-15 degrees
+- [x] Smooth FOV transition (0.2s)
+- [x] Return FOV on sprint end
+- [x] Test: Sprint feels fast without motion sickness
 
 ### Phase 4: Air Control (Priority: High)
 
 #### Mid-Air Movement
-- [ ] Allow directional input while airborne
-- [ ] Apply reduced acceleration (air accel)
-- [ ] Maintain horizontal momentum
-- [ ] Allow strafing direction change
-- [ ] Limit air speed accumulation
-- [ ] Test: Player can adjust mid-air without full control
+- [x] Allow directional input while airborne
+- [x] Apply reduced acceleration (air accel)
+- [x] Maintain horizontal momentum
+- [x] Allow strafing direction change
+- [x] Limit air speed accumulation
+- [x] Test: Player can adjust mid-air without full control
 
 #### Momentum Preservation
-- [ ] Carry sprint velocity into jump
-- [ ] Preserve horizontal velocity on takeoff
-- [ ] Allow momentum chaining (bhop-style)
-- [ ] Test: Fast movement feels rewarding
+- [x] Carry sprint velocity into jump
+- [x] Preserve horizontal velocity on takeoff
+- [x] Allow momentum chaining (bhop-style)
+- [x] Test: Fast movement feels rewarding
 
 ### Phase 5: Slide System (Priority: Medium - Optional but Recommended)
 
 #### Slide Initiation
-- [ ] Detect crouch input during sprint
-- [ ] Trigger slide state
-- [ ] Set initial slide velocity
-- [ ] Add slide duration timer (1.5s)
-- [ ] Lock player to slide direction
+- [x] Detect crouch input during sprint
+- [x] Trigger slide state
+- [x] Set initial slide velocity
+- [x] Add slide duration timer (1.5s)
+- [x] Lock player to slide direction
 
 #### Slide Physics
-- [ ] Apply slide friction curve
-- [ ] Reduce slide speed over time
-- [ ] Maintain some momentum on exit
-- [ ] Allow slide canceling (jump)
-- [ ] Slide boosts from slopes (optional)
-- [ ] Test: Slide feels smooth and tactical
+- [x] Apply slide friction curve
+- [x] Reduce slide speed over time
+- [x] Maintain some momentum on exit
+- [x] Allow slide canceling (jump)
+- [x] Slide boosts from slopes (optional)
+- [x] Test: Slide feels smooth and tactical
 
 #### Slide-to-Jump Combo
-- [ ] Allow jump during slide
-- [ ] Preserve slide momentum
-- [ ] Convert horizontal to jump arc
-- [ ] Add slight boost (optional)
-- [ ] Test: Slide-jump chain feels fluid
+- [x] Allow jump during slide
+- [x] Preserve slide momentum
+- [x] Convert horizontal to jump arc
+- [x] Add slight boost (optional)
+- [x] Test: Slide-jump chain feels fluid
 
 ### Phase 6: Step & Slope Handling (Priority: Medium)
 
 #### Step-Up Mechanic
-- [ ] Detect obstacles below max step height
-- [ ] Auto-step up small ledges (0.3-0.5 units)
-- [ ] Smooth vertical transition
-- [ ] No manual jump required
-- [ ] Test: Player smoothly climbs stairs
+- [x] Detect obstacles below max step height
+- [x] Auto-step up small ledges (0.3-0.5 units)
+- [x] Smooth vertical transition
+- [x] No manual jump required
+- [x] Test: Player smoothly climbs stairs
 
 #### Slope Movement
-- [ ] Detect slope angle
-- [ ] Adjust movement speed on slopes
-- [ ] Prevent sliding on steep slopes
-- [ ] Allow slide boost downhill (if slide enabled)
-- [ ] Block movement beyond max slope angle
-- [ ] Test: Slopes feel natural
+- [x] Detect slope angle
+- [x] Adjust movement speed on slopes
+- [x] Prevent sliding on steep slopes
+- [x] Allow slide boost downhill (if slide enabled)
+- [x] Block movement beyond max slope angle
+- [x] Test: Slopes feel natural
 
 ### Phase 7: Edge Cases & Polish (Priority: Low)
 
