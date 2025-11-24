@@ -969,3 +969,50 @@ body {
   transition: opacity 0.3s;
   pointer-events: none;
 }
+
+/* Critical Health Animation */
+.stat-wrapper.critical .bar-fill {
+  animation: pulse-red 0.5s infinite alternate;
+}
+
+.stat-wrapper.critical .stat-icon {
+  animation: pulse-scale 0.5s infinite alternate;
+}
+
+@keyframes pulse-red {
+  0% {
+    background: linear-gradient(90deg, #ef4444 0%, #f87171 50%, #fca5a5 100%);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+  }
+  100% {
+    background: linear-gradient(90deg, #b91c1c 0%, #dc2626 50%, #ef4444 100%);
+    box-shadow: 0 0 20px rgba(220, 38, 38, 0.8);
+  }
+}
+
+@keyframes pulse-scale {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.2); }
+}
+
+#reload-indicator {
+  position: absolute;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #ef4444;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 0.2s;
+  text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.5; transform: translateX(-50%) scale(0.95); }
+  50% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+  100% { opacity: 0.5; transform: translateX(-50%) scale(0.95); }
+}

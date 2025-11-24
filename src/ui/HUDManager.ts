@@ -1,6 +1,7 @@
 export class HUDManager {
   private healthBarMask: HTMLElement;
   private healthText: HTMLElement;
+  private healthWrapper: HTMLElement;
   private armorBarMask: HTMLElement;
   private armorText: HTMLElement;
   private staminaBarMask: HTMLElement;
@@ -37,6 +38,7 @@ export class HUDManager {
   constructor() {
     this.healthBarMask = document.getElementById('health-bar-mask')!;
     this.healthText = document.getElementById('health-text-value')!;
+    this.healthWrapper = document.getElementById('health-wrapper')!;
     this.armorBarMask = document.getElementById('armor-bar-mask')!;
     this.armorText = document.getElementById('armor-text-value')!;
     this.staminaBarMask = document.getElementById('stamina-bar-mask')!;
@@ -73,6 +75,13 @@ export class HUDManager {
     
     // Update critical vignette based on HP
     this.updateCriticalVignette(pct);
+
+    // Low health bar animation
+    if (pct < 25) {
+      this.healthWrapper.classList.add('critical');
+    } else {
+      this.healthWrapper.classList.remove('critical');
+    }
   }
   
   private updateCriticalVignette(healthPercent: number): void {
