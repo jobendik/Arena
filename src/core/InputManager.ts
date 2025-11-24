@@ -39,6 +39,10 @@ export class InputManager {
     deltaY: 0,
   };
 
+  private gamepadIndex: number | null = null;
+  private gamepadThreshold = 0.2;
+  private gamepadLookSensitivity = 2.0;
+
   private bindings: Record<GameAction, string[]> = {
     [GameAction.MoveForward]: ['KeyW', 'ArrowUp'],
     [GameAction.MoveBackward]: ['KeyS', 'ArrowDown'],
@@ -83,7 +87,39 @@ export class InputManager {
 
   constructor(mouseSensitivity: number = 0.002) {
     this.mouseSensitivity = mouseSensitivity;
+    this.loadBindings();
     this.setupEventListeners();
+    this.setupGamepadListeners();
+  }
+
+  private loadBindings(): void {
+    const saved = localStorage.getItem('rift_bindings');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Merge with defaults to ensure all actions exist
+        this.bindings = { ...this.bindings, ...parsed };
+      } catch (e) {
+        console.error('Failed to load bindings', e);
+      }
+    }
+  }
+
+  private saveBindings(): void {
+    localStorage.setItem('rift_bindings', JSON.stringify(this.bindings));
+  }
+
+  private setupGamepadListeners(): void {
+    window.addEventListener('gamepadconnected', (e) => {
+      console.log('Gamepad connected:', e.gamepad.id);
+      this.gamepadIndex = e.gamepad.index;
+    });
+    window.addEventListener('gamepaddisconnected', (e) => {
+      console.log('Gamepad disconnected:', e.gamepad.id);
+      if (this.gamepadIndex === e.gamepad.index) {
+        this.gamepadIndex = null;
+      }
+    });
   }
 
   private setupEventListeners(): void {
@@ -102,7 +138,7 @@ export class InputManager {
 
   private handleKeyDown(e: KeyboardEvent): void {
     this.keys[e.code] = true;
-    
+
     if (this.isBound(GameAction.Jump, e.code) && this.onJumpCallback) {
       this.onJumpCallback();
     }
@@ -118,7 +154,7 @@ export class InputManager {
     if (this.isBound(GameAction.Grenade, e.code) && this.onGrenadeCallback) {
       this.onGrenadeCallback();
     }
-    
+
     if (this.isBound(GameAction.LastWeapon, e.code) && this.onLastWeaponCallback) {
       this.onLastWeaponCallback();
     }
@@ -212,13 +248,34 @@ export class InputManager {
       } else if (key === 'WheelUp') {
         // Wheel is an event, not a state, so this is tricky for polling.
         // Usually handled via callbacks for discrete actions.
-        return false; 
+        return false;
       } else if (key === 'WheelDown') {
         return false;
       } else {
         if (this.isKeyPressed(key)) return true;
       }
     }
+
+    // Check Gamepad
+    if (this.gamepadIndex !== null) {
+      const gamepad = navigator.getGamepads()[this.gamepadIndex];
+      if (gamepad) {
+        // Hardcoded gamepad mappings for now
+        // TODO: Make this rebindable
+        switch (action) {
+          case GameAction.Jump: return gamepad.buttons[0].pressed; // A
+          case GameAction.Reload: return gamepad.buttons[2].pressed; // X
+          case GameAction.Sprint: return gamepad.buttons[10].pressed; // L3
+          case GameAction.Fire: return gamepad.buttons[7].pressed || gamepad.buttons[7].value > 0.5; // RT
+          case GameAction.Aim: return gamepad.buttons[6].pressed || gamepad.buttons[6].value > 0.5; // LT
+          case GameAction.NextWeapon: return gamepad.buttons[5].pressed; // RB
+          case GameAction.PrevWeapon: return gamepad.buttons[4].pressed; // LB
+          case GameAction.Pause: return gamepad.buttons[9].pressed; // Start
+          case GameAction.Scoreboard: return gamepad.buttons[8].pressed; // Back
+        }
+      }
+    }
+
     return false;
   }
 
@@ -231,8 +288,9 @@ export class InputManager {
         keys.splice(index, 1);
       }
     }
-    
+
     this.bindings[action] = [newKey];
+    this.saveBindings();
   }
 
   public getMovementInput(): THREE.Vector3 {
@@ -241,7 +299,75 @@ export class InputManager {
     if (this.isActionPressed(GameAction.MoveBackward)) inputDir.z += 1;
     if (this.isActionPressed(GameAction.MoveLeft)) inputDir.x -= 1;
     if (this.isActionPressed(GameAction.MoveRight)) inputDir.x += 1;
+
+    // Gamepad Movement
+    if (this.gamepadIndex !== null) {
+      const gamepad = navigator.getGamepads()[this.gamepadIndex];
+      if (gamepad) {
+        const x = gamepad.axes[0];
+        const y = gamepad.axes[1];
+        if (Math.abs(x) > this.gamepadThreshold) inputDir.x += x;
+        if (Math.abs(y) > this.gamepadThreshold) inputDir.z += y;
+      }
+    }
+
     return inputDir;
+  }
+
+  public update(): void {
+    // Poll gamepad for look
+    if (this.gamepadIndex !== null) {
+      const gamepad = navigator.getGamepads()[this.gamepadIndex];
+      if (gamepad) {
+        const lookX = gamepad.axes[2];
+        const lookY = gamepad.axes[3];
+
+        if (Math.abs(lookX) > this.gamepadThreshold) {
+          this.mouse.deltaX += lookX * this.gamepadLookSensitivity;
+        }
+        if (Math.abs(lookY) > this.gamepadThreshold) {
+          this.mouse.deltaY += lookY * this.gamepadLookSensitivity;
+        }
+
+        // Handle button events that need callbacks (like Jump, Reload)
+        // Note: This is a simple poll, might fire every frame. 
+        // Ideally we track previous state to fire 'down' events only.
+        // For now, relying on isActionPressed in Game loop or adding state tracking here.
+        // Since Game.ts checks isActionPressed for continuous actions (Sprint), 
+        // but callbacks are for discrete.
+        // Let's implement simple state tracking for callbacks if needed.
+        // Actually, Game.ts uses callbacks for Jump buffer, Reload, etc.
+        // We need to fire callbacks for gamepad buttons.
+
+        this.handleGamepadCallbacks(gamepad);
+      }
+    }
+  }
+
+  private lastGamepadState: Record<number, boolean> = {};
+
+  private handleGamepadCallbacks(gamepad: Gamepad): void {
+    const checkButton = (index: number, callback?: () => void) => {
+      const pressed = gamepad.buttons[index].pressed;
+      if (pressed && !this.lastGamepadState[index]) {
+        if (callback) callback();
+      }
+      this.lastGamepadState[index] = pressed;
+    };
+
+    checkButton(0, this.onJumpCallback); // A - Jump
+    checkButton(2, this.onReloadCallback); // X - Reload
+    checkButton(9, this.onPauseCallback); // Start - Pause
+    checkButton(5, this.onNextWeaponCallback); // RB - Next
+    checkButton(4, this.onPrevWeaponCallback); // LB - Prev
+
+    // Zoom callback needs continuous state or toggle? 
+    // Game.ts uses callback(isZoomed).
+    const ltPressed = gamepad.buttons[6].pressed || gamepad.buttons[6].value > 0.5;
+    if (ltPressed !== this.lastGamepadState[6]) {
+      if (this.onZoomCallback) this.onZoomCallback(ltPressed);
+      this.lastGamepadState[6] = ltPressed;
+    }
   }
 
   public resetMouseDelta(): void {

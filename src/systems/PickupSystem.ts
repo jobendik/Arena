@@ -3,7 +3,7 @@ import { Player } from '../entities/Player';
 import { Arena } from '../world/Arena';
 
 export interface Pickup {
-  mesh: THREE.Mesh;
+  mesh: THREE.Object3D;
   effect: (player: Player, weaponAddAmmo?: (amount: number) => void) => void;
   type: string;
 }
@@ -26,11 +26,11 @@ export class PickupSystem {
 
   private loadAudio(): void {
     const audioLoader = new THREE.AudioLoader();
-    
+
     audioLoader.load('assets/audio/level/Health-Regen.mp3_8283c502.mp3', (buffer) => {
       this.audioBuffers.set('health', buffer);
     });
-    
+
     audioLoader.load('assets/audio/level/Potion-Pickup.mp3_0d141815.mp3', (buffer) => {
       this.audioBuffers.set('armor', buffer);
     });
@@ -68,29 +68,20 @@ export class PickupSystem {
     };
 
     const config = configs[type];
+
+    // PERFORMANCE: Simple box geometry for instant, hiccup-free rendering
     const mesh = new THREE.Mesh(
       new THREE.BoxGeometry(0.6, 0.6, 0.6),
-      new THREE.MeshStandardMaterial({ 
-        color: config.color, 
-        emissive: config.color, 
-        emissiveIntensity: 0.8,
-        metalness: 0.5,
-        roughness: 0.3
-      })
-    );
-    mesh.position.copy(position);
-    mesh.castShadow = true;
-
-    const outline = new THREE.Mesh(
-      new THREE.BoxGeometry(1.0, 1.0, 1.0),
-      new THREE.MeshBasicMaterial({
+      new THREE.MeshStandardMaterial({
         color: config.color,
-        transparent: true,
-        opacity: 0.3,
-        side: THREE.BackSide,
+        emissive: config.color,
+        emissiveIntensity: 0.8,
+        metalness: 0.3,
+        roughness: 0.4
       })
     );
-    mesh.add(outline);
+
+    mesh.position.copy(position);
     this.scene.add(mesh);
 
     this.pickups.push({ mesh, effect: config.effect, type });
@@ -142,7 +133,7 @@ export class PickupSystem {
       for (let i = 0; i < 20; i++) {
         const pos = new THREE.Vector3((Math.random() - 0.5) * range, 0.5, (Math.random() - 0.5) * range);
         const pickupBox = new THREE.Box3().setFromCenterAndSize(pos, new THREE.Vector3(0.8, 0.8, 0.8)); // Slightly larger check
-        
+
         let collision = false;
         for (const obj of this.arena.arenaObjects) {
           if (pickupBox.intersectsBox(obj.box)) {
@@ -150,7 +141,7 @@ export class PickupSystem {
             break;
           }
         }
-        
+
         if (!collision) return pos;
       }
       // Fallback to a safe default if we can't find a spot (e.g., center-ish but offset)

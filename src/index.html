@@ -1,149 +1,160 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Blockline Arena - Enhanced Weapon System</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>">
-  </head>
-  <body>
-    <div id="game-container"></div>
 
-    <div id="hud">
-      <!-- New Image-based Health Bar -->
-      <div id="health-wrapper" class="stat-wrapper">
-        <img src="assets/images/Health-icon.png_2d41f9ce.png" class="stat-icon icon-health">
-        <div class="bar-container">
-          <div class="bar-bg"></div>
-          <div id="health-bar-mask" class="bar-mask">
-            <div class="bar-fill health-gradient"></div>
-          </div>
-        </div>
-        <div id="health-text-value" class="stat-value">100</div>
-      </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blockline Arena - Enhanced Weapon System</title>
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎮</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
 
-      <div id="armor-wrapper" class="stat-wrapper">
-        <!-- Shield Icon SVG -->
-        <svg class="stat-icon icon-armor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="white" fill="rgba(59, 130, 246, 0.5)"/>
-        </svg>
-        <div class="bar-container">
-          <div class="bar-bg"></div>
-          <div id="armor-bar-mask" class="bar-mask">
-            <div class="bar-fill armor-gradient"></div>
-          </div>
-        </div>
-        <div id="armor-text-value" class="stat-value">100</div>
-      </div>
+<body>
+  <div id="game-container"></div>
 
-      <div id="stamina-wrapper" class="stat-wrapper">
-        <!-- Lightning Icon SVG -->
-        <svg class="stat-icon icon-stamina" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="white" fill="rgba(245, 158, 11, 0.5)"/>
-        </svg>
-        <div class="bar-container">
-          <div class="bar-bg"></div>
-          <div id="stamina-bar-mask" class="bar-mask">
-            <div class="bar-fill stamina-gradient"></div>
-          </div>
-        </div>
-        <div id="stamina-text-value" class="stat-value">100</div>
-      </div>
-
-      <div id="ammo-wrapper">
-        <div id="ammo-icon-container">
-          <img src="assets/images/Bullets-icon.png_7178a5ce.png" class="ammo-icon">
-        </div>
-        <div id="ammo-text-container">
-          <div id="ammo-display">30 / 90</div>
-          <div id="weapon-name">AK-47</div>
+  <div id="hud">
+    <!-- New Image-based Health Bar -->
+    <div id="health-wrapper" class="stat-wrapper">
+      <img src="assets/images/Health-icon.png_2d41f9ce.png" class="stat-icon icon-health">
+      <div class="bar-container">
+        <div class="bar-bg"></div>
+        <div id="health-bar-mask" class="bar-mask">
+          <div class="bar-fill health-gradient"></div>
         </div>
       </div>
+      <div id="health-text-value" class="stat-value">100</div>
+    </div>
 
-      <div id="reload-indicator">RELOADING...</div>
-
-      <div id="wave-display">WAVE 1</div>
-      
-      <div id="score-wrapper">
-        <!-- <img src="assets/images/Score-Rectangle.png_ff321dda.png" class="score-bg"> -->
-        <div id="score-content">
-          <div id="score-label">SCORE</div>
-          <div id="score-display">0</div>
+    <div id="armor-wrapper" class="stat-wrapper">
+      <!-- Shield Icon SVG -->
+      <svg class="stat-icon icon-armor" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="white" fill="rgba(59, 130, 246, 0.5)" />
+      </svg>
+      <div class="bar-container">
+        <div class="bar-bg"></div>
+        <div id="armor-bar-mask" class="bar-mask">
+          <div class="bar-fill armor-gradient"></div>
         </div>
       </div>
+      <div id="armor-text-value" class="stat-value">100</div>
+    </div>
 
-      <div id="enemies-remaining">Enemies: 0</div>
-
-      <div id="powerup-indicator"></div>
-
-      <div id="sniper-scope">
-        <div class="scope-crosshair horizontal"></div>
-        <div class="scope-crosshair vertical"></div>
-        <div class="scope-vignette"></div>
-      </div>
-
-      <div id="crosshair">
-        <div id="crosshair-dot"></div>
-        <div class="crosshair-line" id="cross-top"></div>
-        <div class="crosshair-line" id="cross-bottom"></div>
-        <div class="crosshair-line" id="cross-left"></div>
-        <div class="crosshair-line" id="cross-right"></div>
-      </div>
-
-      <div id="hitmarker">
-        <img src="assets/images/Hitmarker.png_b137b09c.png" class="hitmarker-img">
-      </div>
-
-      <div id="headshot-icon" style="position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); opacity: 0; transition: opacity 0.2s; pointer-events: none;">
-        <img src="assets/images/Headshot-Icon.png_ca1ab804.png" style="width: 64px; height: 64px;">
-      </div>
-
-      <div id="multikill-display" style="position: absolute; top: 20%; left: 50%; transform: translate(-50%, -50%); text-align: center; opacity: 0; transition: opacity 0.3s; pointer-events: none; font-family: 'Orbitron', sans-serif; font-weight: bold; color: #ffcc00; text-shadow: 0 0 10px #ff0000; font-size: 32px;"></div>
-      
-      <div id="streak-display" style="position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%); text-align: center; opacity: 0; transition: opacity 0.3s; pointer-events: none; font-family: 'Orbitron', sans-serif; font-weight: bold; color: #00ccff; text-shadow: 0 0 10px #0000ff; font-size: 24px;"></div>
-
-      <div id="kill-icon" style="position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); opacity: 0; transition: opacity 0.2s; pointer-events: none;">
-        <img src="assets/images/Kill-Icon.png_91675cde.png" style="width: 64px; height: 64px;">
-      </div>
-
-      <!-- Damage Vignette System (3 Layers) -->
-      <div id="vignette-impact-flash"></div>
-      <div id="vignette-damage-pulse"></div>
-      <div id="vignette-critical"></div>
-      
-      <div id="damage-overlay">
-        <img src="assets/images/Damage-Indictator.png_78ece5da.png" class="damage-indicator-img">
-      </div>
-      <div id="low-health-overlay"></div>
-      <div id="message-display"></div>
-
-      <div id="pause-menu">
-        <h1>PAUSED</h1>
-        <button id="resume-btn">RESUME</button>
-        <button id="quit-btn">QUIT TO MENU</button>
-      </div>
-
-      <div id="game-over">
-        <h1>GAME OVER</h1>
-        <div class="stats">
-          <div>Waves Survived: <span id="final-waves">0</span></div>
-          <div>Enemies Killed: <span id="final-kills">0</span></div>
-          <div>Accuracy: <span id="final-accuracy">0</span>%</div>
-          <div>Time Survived: <span id="final-time">0:00</span></div>
-          <div>Final Score: <span id="final-score">0</span></div>
+    <div id="stamina-wrapper" class="stat-wrapper">
+      <!-- Lightning Icon SVG -->
+      <svg class="stat-icon icon-stamina" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="white" fill="rgba(245, 158, 11, 0.5)" />
+      </svg>
+      <div class="bar-container">
+        <div class="bar-bg"></div>
+        <div id="stamina-bar-mask" class="bar-mask">
+          <div class="bar-fill stamina-gradient"></div>
         </div>
-        <button id="restart-btn">PLAY AGAIN</button>
+      </div>
+      <div id="stamina-text-value" class="stat-value">100</div>
+    </div>
+
+    <div id="ammo-wrapper">
+      <div id="ammo-icon-container">
+        <img src="assets/images/Bullets-icon.png_7178a5ce.png" class="ammo-icon">
+      </div>
+      <div id="ammo-text-container">
+        <div id="ammo-display">30 / 90</div>
+        <div id="weapon-name">AK-47</div>
       </div>
     </div>
 
-    <div id="start-screen">
-      <h1>Blockline Arena</h1>
-      <p>Wave-based survival shooter • Enhanced Weapon System</p>
-      <button id="start-btn">START GAME</button>
-      <div class="controls">
-        WASD - Move | SHIFT - Sprint | SPACE - Jump<br />
-        MOUSE - Aim | LEFT CLICK - Shoot | R - Reload
+    <div id="reload-indicator">RELOADING...</div>
+
+    <div id="wave-display"></div>
+
+    <div id="score-wrapper">
+      <!-- <img src="assets/images/Score-Rectangle.png_ff321dda.png" class="score-bg"> -->
+      <div id="score-content">
+        <div id="score-label">SCORE</div>
+        <div id="score-display">0</div>
       </div>
     </div>
-  </body>
+
+    <div id="enemies-remaining">Enemies: 0</div>
+
+    <div id="powerup-indicator"></div>
+
+    <div id="sniper-scope">
+      <div class="scope-crosshair horizontal"></div>
+      <div class="scope-crosshair vertical"></div>
+      <div class="scope-vignette"></div>
+    </div>
+
+    <div id="crosshair">
+      <div id="crosshair-dot"></div>
+      <div class="crosshair-line" id="cross-top"></div>
+      <div class="crosshair-line" id="cross-bottom"></div>
+      <div class="crosshair-line" id="cross-left"></div>
+      <div class="crosshair-line" id="cross-right"></div>
+    </div>
+
+    <div id="hitmarker">
+      <img src="assets/images/Hitmarker.png_b137b09c.png" class="hitmarker-img">
+    </div>
+
+    <div id="headshot-icon"
+      style="position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); opacity: 0; transition: opacity 0.2s; pointer-events: none;">
+      <img src="assets/images/Headshot-Icon.png_ca1ab804.png" style="width: 64px; height: 64px;">
+    </div>
+
+    <div id="multikill-display"></div>
+
+    <div id="streak-display"></div>
+
+    <div id="kill-icon"
+      style="position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); opacity: 0; transition: opacity 0.2s; pointer-events: none;">
+      <img src="assets/images/Kill-Icon.png_91675cde.png" style="width: 64px; height: 64px;">
+    </div>
+
+    <!-- Damage Vignette System (3 Layers) -->
+    <div id="vignette-impact-flash"></div>
+    <div id="vignette-damage-pulse"></div>
+    <div id="vignette-critical"></div>
+
+    <div id="damage-overlay">
+      <img src="assets/images/Damage-Indictator.png_78ece5da.png" class="damage-indicator-img">
+    </div>
+    <div id="low-health-overlay"></div>
+    <div id="message-display"></div>
+
+    <div id="killfeed-container"></div>
+
+    <div id="pause-menu">
+      <h1>PAUSED</h1>
+      <button id="resume-btn">RESUME</button>
+      <button id="quit-btn">QUIT TO MENU</button>
+    </div>
+
+    <div id="game-over">
+      <h1>GAME OVER</h1>
+      <div class="stats">
+        <div>Waves Survived: <span id="final-waves">0</span></div>
+        <div>Enemies Killed: <span id="final-kills">0</span></div>
+        <div>Accuracy: <span id="final-accuracy">0</span>%</div>
+        <div>Time Survived: <span id="final-time">0:00</span></div>
+        <div>Final Score: <span id="final-score">0</span></div>
+      </div>
+      <button id="restart-btn">PLAY AGAIN</button>
+    </div>
+  </div>
+
+  <div id="start-screen">
+    <h1>Blockline Arena</h1>
+    <p>Wave-based survival shooter • Enhanced Weapon System</p>
+    <button id="start-btn">START GAME</button>
+    <div class="controls">
+      WASD - Move | SHIFT - Sprint | SPACE - Jump<br />
+      MOUSE - Aim | LEFT CLICK - Shoot | R - Reload
+    </div>
+  </div>
+</body>
+
 </html>

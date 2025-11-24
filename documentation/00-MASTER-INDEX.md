@@ -124,9 +124,9 @@ This blueprint is a comprehensive, step-by-step implementation guide for Rift - 
 **Status**: Must be completed first - these are the building blocks
 
 ### Core Player Systems
-- [ ] [01-player-controller.md](./01-core-systems/01-player-controller.md) - Movement, physics, controls (🟡 In Progress)
+- [x] [01-player-controller.md](./01-core-systems/01-player-controller.md) - Movement, physics, controls (🟢 Complete)
 - [x] [02-camera-system.md](./01-core-systems/02-camera-system.md) - FOV, shake, bob, feel (🟢 Complete)
-- [ ] [03-input-system.md](./01-core-systems/03-input-system.md) - Input handling, rebinding (🟡 In Progress)
+- [x] [03-input-system.md](./01-core-systems/03-input-system.md) - Input handling, rebinding (🟢 Complete)
 
 ### Core Weapon Systems
 - [x] [04-weapon-system.md](./01-core-systems/04-weapon-system.md) - Weapon architecture, firing, reloading (🟢 Complete)
@@ -143,10 +143,7 @@ This blueprint is a comprehensive, step-by-step implementation guide for Rift - 
 - [x] [11-projectile-system.md](./01-core-systems/11-projectile-system.md) - Ballistics, trajectories (for grenades) (🟢 Complete)
 - [x] [12-movement-physics.md](./01-core-systems/12-movement-physics.md) - Acceleration, friction, air control (🟢 Complete)
 
-### Core Physics
-- [ ] [10-physics-core.md](./01-core-systems/10-physics-core.md) - Collision, gravity, forces
-- [ ] [11-projectile-system.md](./01-core-systems/11-projectile-system.md) - Ballistics, trajectories (for grenades)
-- [ ] [12-movement-physics.md](./01-core-systems/12-movement-physics.md) - Acceleration, friction, air control
+
 
 ---
 
@@ -175,14 +172,14 @@ This blueprint is a comprehensive, step-by-step implementation guide for Rift - 
 - [x] [22-impact-effects.md](./03-feedback-systems/22-impact-effects.md) - Surface-specific impacts (🟢 Complete)
 
 ### Explosion Systems
-- [ ] [23-explosion-core.md](./03-visual-effects/23-explosion-core.md) - Explosion mechanics, radius, damage
-- [ ] [24-explosion-vfx.md](./03-visual-effects/24-explosion-vfx.md) - Blast visuals, shockwaves, particles
-- [ ] [25-grenade-vfx.md](./03-visual-effects/25-grenade-vfx.md) - Grenade trails, detonation effects
+- [x] [23-explosion-core.md](./03-visual-effects/23-explosion-core.md) - Explosion mechanics, radius, damage (🟢 Complete)
+- [x] [24-explosion-vfx.md](./03-visual-effects/24-explosion-vfx.md) - Blast visuals, shockwaves, particles (🟢 Complete)
+- [x] [25-grenade-vfx.md](./03-visual-effects/25-grenade-vfx.md) - Grenade trails, detonation effects (🟢 Complete)
 
 ### Screen Effects
-- [ ] [26-screen-shake.md](./03-visual-effects/26-screen-shake.md) - Camera shake patterns, intensity
-- [ ] [27-post-processing.md](./03-visual-effects/27-post-processing.md) - Bloom, vignette, distortion
-- [ ] [28-damage-vignette.md](./03-visual-effects/28-damage-vignette.md) - Damage screen overlay, directional hits
+- [x] [26-screen-shake.md](./03-visual-effects/26-screen-shake.md) - Camera shake patterns, intensity (🟢 Complete)
+- [x] [27-post-processing.md](./03-visual-effects/27-post-processing.md) - Bloom, vignette, distortion (🟢 Complete)
+- [x] [28-damage-vignette.md](./03-visual-effects/28-damage-vignette.md) - Damage screen overlay, directional hits (🟢 Complete)
 
 ---
 
@@ -190,10 +187,10 @@ This blueprint is a comprehensive, step-by-step implementation guide for Rift - 
 **Status**: Player information and feedback
 
 ### Core HUD
-- [ ] [29-hud-architecture.md](./04-hud-ui/29-hud-architecture.md) - HUD framework, layout, anchoring
-- [ ] [30-crosshair-system.md](./04-hud-ui/30-crosshair-system.md) - Dynamic crosshair, expansion, hit feedback
-- [ ] [31-health-armor-ui.md](./04-hud-ui/31-health-armor-ui.md) - Health/armor bars, low health warnings
-- [ ] [32-ammo-display.md](./04-hud-ui/32-ammo-display.md) - Ammo counter, reload indicator
+- [x] [29-hud-architecture.md](./04-hud-ui/29-hud-architecture.md) - HUD framework, layout, anchoring (🟢 Complete)
+- [x] [30-crosshair-system.md](./04-hud-ui/30-crosshair-system.md) - Dynamic crosshair, expansion, hit feedback (🟢 Complete)
+- [x] [31-health-armor-ui.md](./04-hud-ui/31-health-armor-ui.md) - Health/armor bars, low health warnings (🟢 Complete)
+- [x] [32-ammo-display.md](./04-hud-ui/32-ammo-display.md) - Ammo counter, reload indicator (🟢 Complete)
 
 ### Combat UI
 - [ ] [33-killfeed.md](./04-hud-ui/33-killfeed.md) - Kill notifications, multi-kills, feed animation

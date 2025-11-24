@@ -134,6 +134,17 @@ The input system handles all player input - keyboard, mouse, gamepad - and makes
 - [ ] Configurable intensity
 - [ ] Test: Rumble feels good
 
+### Phase 4: Gamepad Support (Priority: Medium)
+- [x] **Gamepad Polling**
+  - [x] Detect connected gamepads
+  - [x] Poll button states
+  - [x] Poll axis states (sticks)
+- [x] **Action Mapping**
+  - [x] Map buttons to GameActions
+  - [x] Map sticks to movement/look
+- [x] **Deadzone Handling**
+  - [x] Implement deadzones for sticks
+
 ### Phase 5: Rebinding System (Priority: Medium)
 
 #### Binding Interface
@@ -145,8 +156,11 @@ The input system handles all player input - keyboard, mouse, gamepad - and makes
 - [ ] Test: Can rebind keys
 
 #### Binding Storage
-- [ ] Save bindings to JSON
-- [ ] Load bindings on startup
+- [x] **Data Structure**
+  - [x] Store bindings in a serializable format
+- [x] **Persistence**
+  - [x] Save bindings to localStorage
+  - [x] Load bindings on startup
 - [ ] Reset to defaults option
 - [ ] Per-profile bindings (optional)
 - [ ] Test: Bindings persist

@@ -242,10 +242,10 @@ maxSlopeAngle: 45.0
 - [x] No manual jump required
 - [x] Test: Player smoothly climbs stairs
 
-#### Slope Movement
-- [x] Detect slope angle
-- [x] Adjust movement speed on slopes
-- [x] Prevent sliding on steep slopes
+####- [x] **Slope Handling**
+  - [x] Detect ground normal
+  - [x] Adjust velocity on slopes (prevent sliding up)
+  - [x] Slide down steep slopes
 - [x] Allow slide boost downhill (if slide enabled)
 - [x] Block movement beyond max slope angle
 - [x] Test: Slopes feel natural

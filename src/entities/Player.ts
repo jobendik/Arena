@@ -30,6 +30,11 @@ export class Player implements Damageable {
   public landingImpact = 0;
   public jumpLift = 0;
 
+  // Slope Handling
+  private groundNormal = new THREE.Vector3(0, 1, 0);
+  private slopeAngle = 0;
+  private maxSlopeAngle = Math.PI / 4; // 45 degrees
+
   // Audio
   private audioBuffers: Record<string, AudioBuffer> = {};
   private footstepSounds: THREE.Audio[] = [];
@@ -105,7 +110,7 @@ export class Player implements Damageable {
     audioLoader.load(`${basePath}Echo-Death-1.mp3_4264c0fa.mp3`, (buffer) => {
       this.audioBuffers['death'] = buffer;
     }, undefined, (error) => console.warn('Failed to load death sound', error));
-    
+
     audioLoader.load(`${basePath}Heart-Beat.mp3_1e759b97.mp3`, (buffer) => {
       this.audioBuffers['heartbeat'] = buffer;
     }, undefined, (error) => console.warn('Failed to load heartbeat sound', error));
@@ -125,7 +130,7 @@ export class Player implements Damageable {
       // Add upward component for explosions
       direction.y += 0.5;
       direction.normalize();
-      
+
       this.velocity.add(direction.multiplyScalar(info.knockbackForce));
       this.onGround = false; // Lift off ground
     }
@@ -205,12 +210,12 @@ export class Player implements Damageable {
       this.deathSound.play();
     }
   }
-  
+
   public startHeartbeat(): void {
     if (this.isHeartbeatPlaying || !this.audioBuffers['heartbeat']) return;
-    
+
     this.isHeartbeatPlaying = true;
-    
+
     const playHeartbeat = () => {
       if (this.audioBuffers['heartbeat'] && this.isHeartbeatPlaying) {
         if (this.heartbeatSound.isPlaying) this.heartbeatSound.stop();
@@ -218,14 +223,14 @@ export class Player implements Damageable {
         this.heartbeatSound.play();
       }
     };
-    
+
     // Play immediately
     playHeartbeat();
-    
+
     // Then repeat every 900ms (66 BPM - tense heartbeat)
     this.heartbeatInterval = window.setInterval(playHeartbeat, 900);
   }
-  
+
   public stopHeartbeat(): void {
     this.isHeartbeatPlaying = false;
     if (this.heartbeatInterval) {
@@ -236,11 +241,11 @@ export class Player implements Damageable {
       this.heartbeatSound.stop();
     }
   }
-  
+
   public updateHeartbeat(healthPercent: number): void {
     if (healthPercent <= 50 && !this.isHeartbeatPlaying) {
       this.startHeartbeat();
-      
+
       // Adjust heartbeat speed based on health
       if (this.heartbeatInterval) {
         clearInterval(this.heartbeatInterval);
@@ -302,7 +307,7 @@ export class Player implements Damageable {
     if (landingSpeed > 5) {
       this.landingImpact = Math.min(landingSpeed / 20, 1);
       this.playLandSound();
-      
+
       // Fall Damage
       if (landingSpeed > 18) { // Threshold for damage (approx 6-7m drop)
         const damage = Math.floor((landingSpeed - 18) * 5);
@@ -313,6 +318,27 @@ export class Player implements Damageable {
           });
         }
       }
+    }
+  }
+
+  private checkSlope(arenaObjects: Array<{ mesh: THREE.Mesh; box: THREE.Box3 }>): void {
+    // Raycast down to detect slope normal
+    const raycaster = new THREE.Raycaster(
+      this.position.clone(),
+      new THREE.Vector3(0, -1, 0),
+      0,
+      PLAYER_CONFIG.height + 0.5
+    );
+
+    const meshes = arenaObjects.map(obj => obj.mesh);
+    const intersects = raycaster.intersectObjects(meshes, false);
+
+    if (intersects.length > 0 && intersects[0].face) {
+      this.groundNormal.copy(intersects[0].face.normal).normalize();
+      this.slopeAngle = this.groundNormal.angleTo(new THREE.Vector3(0, 1, 0));
+    } else {
+      this.groundNormal.set(0, 1, 0);
+      this.slopeAngle = 0;
     }
   }
 
@@ -331,6 +357,15 @@ export class Player implements Damageable {
     if (hasInput) {
       inputDir.normalize();
       inputDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.rotation.y);
+
+      // Slope adjustment: Project input direction onto the slope plane
+      if (this.onGround && this.slopeAngle > 0) {
+        // Calculate the direction perpendicular to the slope normal and the right vector
+        // Calculate the direction perpendicular to the slope normal and the right vector
+        // If moving straight up/down slope, right vector might be zero-ish, handle that?
+        // Better: project inputDir onto the plane defined by groundNormal
+        inputDir.projectOnPlane(this.groundNormal).normalize();
+      }
     }
 
     // Slide Cooldown
@@ -382,10 +417,10 @@ export class Player implements Damageable {
       // Slide physics
       const slideSpeed = PLAYER_CONFIG.slideSpeed * (this.slideTimer / PLAYER_CONFIG.slideDuration);
       const targetSlideVel = new THREE.Vector2(this.slideDirection.x, this.slideDirection.z).multiplyScalar(slideSpeed);
-      
+
       // Apply friction/decay
       horizVel.lerp(targetSlideVel, PLAYER_CONFIG.slideFriction * delta);
-      
+
       // Allow slight steering? (Optional, keeping it locked for now as per "lock player to slide direction")
     } else {
       // Normal movement
@@ -436,7 +471,7 @@ export class Player implements Damageable {
       this.coyoteTimer = 0;
       this.jumpBufferTimer = 0;
       this.playJumpSound();
-      
+
       // Slide Jump: Cancel slide but keep momentum
       if (this.isSliding) {
         this.isSliding = false;
@@ -468,6 +503,16 @@ export class Player implements Damageable {
     const playerRadius = 0.4;
     const stepHeight = PLAYER_CONFIG.stepHeight;
     this.onGround = false;
+
+    // Check slope before collision resolution to have normal ready
+    this.checkSlope(arenaObjects);
+
+    // Prevent moving up steep slopes
+    if (this.onGround && this.slopeAngle > this.maxSlopeAngle) {
+      // Apply sliding force down the slope
+      const downSlope = new THREE.Vector3(0, -1, 0).projectOnPlane(this.groundNormal).normalize();
+      this.velocity.add(downSlope.multiplyScalar(PLAYER_CONFIG.gravity * delta));
+    }
 
     arenaObjects.forEach((obj) => {
       const box = obj.box.clone();

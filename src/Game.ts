@@ -49,12 +49,12 @@ export class Game {
   private multiKillCount = 0;
   private lastKillTime = 0;
   private hitStreakCount = 0;
-  
+
   private respawnSound?: THREE.Audio;
 
   constructor() {
     console.log('Initializing game...');
-    
+
     // Initialize Three.js
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(
@@ -83,7 +83,7 @@ export class Game {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.2;
     (this.renderer as any).outputEncoding = THREE.sRGBEncoding;
-    
+
     const container = document.getElementById('game-container');
     if (!container) {
       console.error('Game container not found!');
@@ -100,7 +100,7 @@ export class Game {
     this.enemyManager = new EnemyManager(this.scene, listener);
     this.pickupSystem = new PickupSystem(this.scene, listener, this.arena);
     this.impactSystem = new ImpactSystem(this.scene, listener);
-    
+
     // Setup shell ejection
     this.weaponSystem.setShellEjectCallback((pos, dir) => {
       this.particleSystem.spawnShellCasing(pos, dir, (hitPos) => {
@@ -119,7 +119,7 @@ export class Game {
       this.weaponSystem,
       this.impactSystem
     );
-    
+
     this.hudManager = new HUDManager();
     this.inputManager = new InputManager(CAMERA_CONFIG.mouseSensitivity);
     this.postProcessing = new PostProcessing(this.renderer, this.scene, this.camera);
@@ -140,7 +140,7 @@ export class Game {
 
     this.setupScene();
     this.setupEventListeners();
-    
+
     console.log('Game initialized successfully');
   }
 
@@ -168,13 +168,13 @@ export class Game {
     const dir3 = new THREE.DirectionalLight(0xff4488, 0.6);
     dir3.position.set(0, 10, 50);
     this.scene.add(dir3);
-    
+
     // Animated point lights
     const centerLight = new THREE.PointLight(0xff3366, 2, 25);
     centerLight.position.set(0, 3, 0);
     this.scene.add(centerLight);
     this.pointLights.push({ light: centerLight, baseIntensity: 2, phase: 0 });
-    
+
     const cornerColors = [0x00ffff, 0xff00ff, 0xffff00, 0x00ff88];
     const cornerPositions = [[20, 4, 20], [-20, 4, 20], [20, 4, -20], [-20, 4, -20]];
     cornerPositions.forEach((pos, i) => {
@@ -291,7 +291,7 @@ export class Game {
     });
 
     window.addEventListener('resize', () => this.onWindowResize());
-    
+
     document.addEventListener('click', () => {
       if (!this.gameState.running && !this.gameState.paused) {
         this.startGame();
@@ -327,6 +327,7 @@ export class Game {
     this.enemyManager.clear();
     this.particleSystem.clear();
     this.pickupSystem.clear();
+    this.hudManager.reset();
 
     // Spawn initial pickups
     this.pickupSystem.spawnWavePickups(this.player.health, PLAYER_CONFIG.maxHealth, this.gameState.wave);
@@ -341,7 +342,7 @@ export class Game {
     this.gameState.waveInProgress = true;
     this.gameState.betweenWaves = false;
     this.enemyManager.spawnWave(this.gameState.wave);
-    this.hudManager.showMessage(`WAVE ${this.gameState.wave}`);
+    // Wave announcement handled by updateWave() in updateHUD() with animation
     this.updateHUD();
   }
 
@@ -351,7 +352,7 @@ export class Game {
    */
   private getTracerProperties(): { color: number; useFireTexture: boolean } {
     const weaponType = this.weaponSystem.currentWeaponType;
-    
+
     switch (weaponType) {
       case 'AK47':
         return { color: 0xff6600, useFireTexture: true }; // Bright orange fire
@@ -422,7 +423,7 @@ export class Game {
   private gameOver(): void {
     this.gameState.running = false;
     document.exitPointerLock();
-    
+
     // Play death sound
     this.player.playDeathSound();
 
@@ -460,6 +461,7 @@ export class Game {
     if (!this.gameState.running || this.gameState.paused) return;
 
     // Input
+    this.inputManager.update();
     const inputDir = this.inputManager.getMovementInput();
     const wantsToSprint = this.inputManager.isActionPressed(GameAction.Sprint) && inputDir.length() > 0;
     const wantsJump = this.player.jumpBufferTimer > 0;
@@ -488,12 +490,12 @@ export class Game {
       if (shotFired) {
         this.gameState.shotsFired++;
         const muzzlePosition = this.weaponSystem.getMuzzleWorldPosition();
-        
+
         // Handle shotgun pellets or single shot
         if (directions && directions.length > 1) {
           // Shotgun - fire multiple pellets
           directions.forEach(dir => this.handleShooting(dir, true));
-          
+
           // Create tracer lines for all pellets (visual spray pattern)
           const impacts: THREE.Vector3[] = [];
           directions.forEach(dir => {
@@ -509,7 +511,7 @@ export class Game {
               impacts.push(muzzlePosition.clone().add(dir.clone().multiplyScalar(50)));
             }
           });
-          
+
           // Show pellet spread with tracers (weapon-specific color)
           if (impacts.length > 0) {
             const tracerProps = this.getTracerProperties();
@@ -551,12 +553,12 @@ export class Game {
 
     // Update arena
     this.arena.update(this.gameTime);
-    
+
     // Update sky shader
     if (this.skyMaterial) {
       this.skyMaterial.uniforms.time.value = this.gameTime;
     }
-    
+
     // Update point lights
     this.pointLights.forEach((pl) => {
       pl.light.intensity = pl.baseIntensity * (Math.sin(this.gameTime * 2 + pl.phase) * 0.3 + 0.7);
@@ -632,8 +634,8 @@ export class Game {
 
         // Spawn damage number
         this.damageTextSystem.spawn(
-          hitPosition.clone().add(new THREE.Vector3(0, 0.5, 0)), 
-          damage * this.player.damageMultiplier, 
+          hitPosition.clone().add(new THREE.Vector3(0, 0.5, 0)),
+          damage * this.player.damageMultiplier,
           hitHead
         );
 
@@ -643,12 +645,12 @@ export class Game {
           this.impactSystem.playHitConfirmation();
         }
         this.particleSystem.spawnImpactEffect(hitPosition, killed);
-        
+
         // Show headshot icon if applicable
         if (killed && hitHead) {
           this.hudManager.showHeadshotIcon();
         }
-        
+
         // Bullet tracer to hit point (pellets handled separately)
         if (!isPellet) {
           const tracerProps = this.getTracerProperties();
@@ -663,7 +665,7 @@ export class Game {
         if (killed) {
           this.gameState.kills++;
           this.gameState.score += enemy.score;
-          
+
           // Multi-kill logic
           const now = performance.now();
           if (now - this.lastKillTime < 3000) {
@@ -680,10 +682,19 @@ export class Game {
           this.impactSystem.playDeathImpact(hitPosition);
           this.particleSystem.spawn(hitPosition, 0x22c55e, 15);
           this.hudManager.showKillIcon(); // Show kill icon
-          
+
           if (enemy.type === 'heavy') {
             this.createExplosion(hitPosition, 5, 50);
           }
+
+          // Add to killfeed
+          this.hudManager.addKillFeed(
+            'Player',
+            'Enemy',
+            WEAPON_CONFIG[this.weaponSystem.currentWeaponType].name,
+            hitHead,
+            this.multiKillCount > 1
+          );
 
           this.enemyManager.removeEnemy(enemy);
 
@@ -695,13 +706,13 @@ export class Game {
             );
           }
         } else {
-            // Non-lethal hit feedback
-            this.impactSystem.playBodyImpact(hitPosition);
-            this.impactSystem.playHitConfirmation();
+          // Non-lethal hit feedback
+          this.impactSystem.playBodyImpact(hitPosition);
+          this.impactSystem.playHitConfirmation();
         }
 
         this.hudManager.showHitmarker(killed);
-        
+
         if (this.hitStreakCount >= 3) {
           this.hudManager.showHitStreak(this.hitStreakCount);
         }
@@ -710,7 +721,7 @@ export class Game {
 
     if (!hitEnemy) {
       this.hitStreakCount = 0;
-      
+
       // Hit wall/floor - check arena objects for material-based impacts
       const arenaIntersects = raycaster.intersectObjects(
         this.arena.arenaObjects.map(obj => obj.mesh),
@@ -721,7 +732,7 @@ export class Game {
         const hit = arenaIntersects[0];
         const hitPoint = hit.point;
         const normal = hit.face?.normal || new THREE.Vector3(0, 1, 0);
-        
+
         // Find the arena object to get material type
         const arenaObj = this.arena.arenaObjects.find(obj => obj.mesh === hit.object);
         const material = arenaObj?.material || 'default';
@@ -730,15 +741,15 @@ export class Game {
         if (!isPellet) {
           this.impactSystem.playSurfaceImpact(hitPoint, material as any);
         }
-        
+
         // Create bullet hole decal
         this.decalSystem.createBulletHole(hitPoint, normal, material as any);
-        
+
         // Surface debris particles (fewer for pellets)
         if (!isPellet) {
           this.particleSystem.spawnMaterialImpact(hitPoint, normal, material);
         }
-        
+
         // Bullet tracer handled separately for pellets
         if (!isPellet) {
           const tracerProps = this.getTracerProperties();
@@ -758,7 +769,7 @@ export class Game {
   private handleEnemyShoot(enemy: Enemy): void {
     // Play enemy shoot sound
     this.enemyManager.playShootSound(enemy);
-    
+
     if (enemy.muzzleFlash) {
       (enemy.muzzleFlash.material as THREE.MeshBasicMaterial).opacity = 1;
       setTimeout(() => {
@@ -770,7 +781,7 @@ export class Game {
     const distToPlayer = enemy.mesh.position.distanceTo(this.player.position);
     const accuracyMultiplier = Math.min(1.0 + distToPlayer * 0.05, 2.0); // Worse at distance
     const spread = enemy.accuracy * accuracyMultiplier;
-    
+
     const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(enemy.mesh.quaternion);
     dir.x += (Math.random() - 0.5) * spread;
     dir.y += (Math.random() - 0.5) * spread;
@@ -778,11 +789,11 @@ export class Game {
 
     const shootOrigin = enemy.mesh.position.clone().add(new THREE.Vector3(0, 1, 0));
     const raycaster = new THREE.Raycaster(shootOrigin, dir);
-    
+
     // Check for obstacles first - use recursive true to catch all geometry
     const meshes = this.arena.arenaObjects.map(obj => obj.mesh);
     const obstacleIntersects = raycaster.intersectObjects(meshes, true);
-    
+
     // Player box from bottom to top of player
     const playerBox = new THREE.Box3(
       new THREE.Vector3(
@@ -799,10 +810,10 @@ export class Game {
 
     // Calculate distance to player
     const distanceToPlayer = shootOrigin.distanceTo(this.player.position);
-    
+
     // Check if any obstacle is closer than the player (with small buffer)
     const hasObstacleInWay = obstacleIntersects.some(intersect => intersect.distance < distanceToPlayer - 0.5);
-    
+
     // Calculate angle from player to enemy for directional indicator
     const dx = enemy.mesh.position.x - this.player.position.x;
     const dz = enemy.mesh.position.z - this.player.position.z;
@@ -813,14 +824,14 @@ export class Game {
     // right -> 90°, left -> 270° (matches texture: 0° arrow down)
     const delta = angleToEnemy - playerYaw;
     let relativeAngle = (delta + 180 + 360) % 360;
-    
+
     // Mirror left/right only (preserve front 180° and back 0°)
     // Front/back range: 135-225° (front) and 0-45°/315-360° (back)
     if (relativeAngle > 45 && relativeAngle < 315) {
       // This is a side hit, mirror it: 90° -> 270°, 270° -> 90°
       relativeAngle = 360 - relativeAngle;
     }
-    
+
     // Expanded near-miss detection box (larger than player hitbox)
     const nearMissBox = new THREE.Box3(
       new THREE.Vector3(
@@ -834,7 +845,7 @@ export class Game {
         this.player.position.z + 1.5
       )
     );
-    
+
     if (!hasObstacleInWay && raycaster.ray.intersectsBox(playerBox)) {
       // ACTUAL HIT - Red indicator with damage
       this.player.takeDamage({
@@ -843,11 +854,8 @@ export class Game {
         instigator: enemy
       });
       const isDead = this.player.isDead();
-      
-      // Show RED damage indicator
-      this.hudManager.flashDamage(relativeAngle);
-      
-      // Trigger dramatic damage vignette system
+
+      // Trigger dramatic damage vignette system (includes directional indicator)
       this.hudManager.showDamageVignette(enemy.damage, PLAYER_CONFIG.maxHealth, relativeAngle);
       this.weaponSystem.cameraShake.intensity = Math.max(this.weaponSystem.cameraShake.intensity, 0.04);
 
@@ -857,7 +865,7 @@ export class Game {
     } else if (!hasObstacleInWay && raycaster.ray.intersectsBox(nearMissBox)) {
       // NEAR MISS - White indicator warning (no damage)
       this.hudManager.showNearMissIndicator(relativeAngle);
-      
+
       // Play bullet whiz sound at the closest point on the ray to the player
       const ray = new THREE.Ray(shootOrigin, dir);
       const closestPoint = new THREE.Vector3();
@@ -868,7 +876,7 @@ export class Game {
 
   private updateCamera(delta: number): void {
     this.camera.position.copy(this.player.position);
-    
+
     // Apply positional shake
     this.camera.position.x += this.weaponSystem.positionalShake.x;
     this.camera.position.y += this.weaponSystem.positionalShake.y;
@@ -903,7 +911,7 @@ export class Game {
 
     // If zoomed, we want instant or very fast transition
     const lerpSpeed = this.weaponSystem.isZoomed ? 50 : CAMERA_CONFIG.fovLerpSpeed;
-    
+
     this.player.currentFOV +=
       (targetFOV - this.player.currentFOV) * lerpSpeed * delta;
     this.camera.fov = this.player.currentFOV;
