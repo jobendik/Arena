@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ParticleSystem } from './ParticleSystem';
 
 export interface ProjectileConfig {
   speed: number;
@@ -24,13 +25,15 @@ interface Projectile {
 export class ProjectileSystem {
   private projectiles: Projectile[] = [];
   private scene: THREE.Scene;
+  private particleSystem: ParticleSystem;
   
   // Reusable geometry/materials
   private grenadeGeometry: THREE.SphereGeometry;
   private grenadeMaterial: THREE.MeshStandardMaterial;
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, particleSystem: ParticleSystem) {
     this.scene = scene;
+    this.particleSystem = particleSystem;
     this.grenadeGeometry = new THREE.SphereGeometry(0.1, 8, 8);
     this.grenadeMaterial = new THREE.MeshStandardMaterial({ 
       color: 0x444444, 
@@ -96,6 +99,9 @@ export class ProjectileSystem {
       // Apply gravity
       proj.velocity.y -= proj.config.gravity * delta;
 
+      // Trail
+      this.particleSystem.spawnTrail(proj.mesh.position, 0xaaaaaa, 0.2);
+
       // Calculate next position
       const nextPos = proj.mesh.position.clone().add(proj.velocity.clone().multiplyScalar(delta));
 
@@ -112,6 +118,11 @@ export class ProjectileSystem {
         // Bounce
         const normal = hit.face?.normal || new THREE.Vector3(0, 1, 0);
         
+        // Visuals
+        if (proj.velocity.length() > 2.0) {
+            this.particleSystem.spawnBounceSparks(hit.point, normal);
+        }
+
         // Reflect velocity: v = v - 2 * (v . n) * n
         const dot = proj.velocity.dot(normal);
         proj.velocity.sub(normal.multiplyScalar(2 * dot));

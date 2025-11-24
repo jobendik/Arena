@@ -1,7 +1,7 @@
 # 25 - GRENADE VFX
 
 **Priority**: 🟡 MEDIUM-HIGH - Visual Effects  
-**Status**: ⬜ Not Started  
+**Status**: ✅ Complete  
 **Dependencies**: Previous systems in category  
 **Estimated Complexity**: Medium  
 **Time Estimate**: 4-8 hours

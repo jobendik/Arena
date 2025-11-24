@@ -9,6 +9,7 @@ export class PostProcessing {
   private bloomPass: UnrealBloomPass;
   private chromaPass: ShaderPass;
   private vignettePass: ShaderPass;
+  private colorGradingPass: ShaderPass;
 
   constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera) {
     this.composer = new EffectComposer(renderer);
@@ -30,6 +31,10 @@ export class PostProcessing {
     // Vignette
     this.vignettePass = new ShaderPass(this.createVignetteShader());
     this.composer.addPass(this.vignettePass);
+
+    // Color Grading (Brightness/Contrast/Saturation)
+    this.colorGradingPass = new ShaderPass(this.createColorGradingShader());
+    this.composer.addPass(this.colorGradingPass);
   }
 
   private createChromaticAberrationShader(): any {
@@ -87,6 +92,48 @@ export class PostProcessing {
           vec4 texel = texture2D(tDiffuse, vUv);
           vec2 uv = (vUv - vec2(0.5)) * vec2(offset);
           gl_FragColor = vec4(mix(texel.rgb, vec3(0.0), dot(uv, uv) * darkness), texel.a);
+        }
+      `,
+    };
+  }
+
+  private createColorGradingShader(): any {
+    return {
+      uniforms: {
+        tDiffuse: { value: null },
+        brightness: { value: 1.1 },
+        contrast: { value: 1.1 },
+        saturation: { value: 1.2 },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform float brightness;
+        uniform float contrast;
+        uniform float saturation;
+        varying vec2 vUv;
+        
+        void main() {
+          vec4 texel = texture2D(tDiffuse, vUv);
+          vec3 color = texel.rgb;
+          
+          // Brightness
+          color *= brightness;
+          
+          // Contrast
+          color = (color - 0.5) * contrast + 0.5;
+          
+          // Saturation
+          vec3 gray = vec3(dot(color, vec3(0.299, 0.587, 0.114)));
+          color = mix(gray, color, saturation);
+          
+          gl_FragColor = vec4(color, texel.a);
         }
       `,
     };

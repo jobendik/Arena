@@ -77,8 +77,8 @@ This blueprint is a comprehensive, step-by-step implementation guide for Rift - 
 
 ### Visual Effects
 - [x] [19-particle-engine.md](./03-feedback-systems/19-particle-engine.md) - Particle system core (🟢 Complete)
-- [ ] [20-muzzle-flash.md](./03-feedback-systems/20-muzzle-flash.md) - Advanced muzzle flash effects
-- [ ] [21-bullet-tracers.md](./03-feedback-systems/21-bullet-tracers.md) - Visual bullet paths
+- [x] [20-muzzle-flash.md](./03-feedback-systems/20-muzzle-flash.md) - Advanced muzzle flash effects (🟢 Complete)
+- [x] [21-bullet-tracers.md](./03-feedback-systems/21-bullet-tracers.md) - Visual bullet paths (🟢 Complete)
 
 ---
 
@@ -169,10 +169,10 @@ This blueprint is a comprehensive, step-by-step implementation guide for Rift - 
 **Status**: Makes combat feel impactful
 
 ### Particle Systems
-- [ ] [19-particle-engine.md](./03-visual-effects/19-particle-engine.md) - Particle spawner, pooling, emitters
-- [ ] [20-muzzle-flash.md](./03-visual-effects/20-muzzle-flash.md) - Gun flash effects, lighting
-- [ ] [21-bullet-tracers.md](./03-visual-effects/21-bullet-tracers.md) - Bullet trails, neon streaks
-- [ ] [22-impact-effects.md](./03-visual-effects/22-impact-effects.md) - Sparks, debris, hit particles
+- [x] [19-particle-engine.md](./03-visual-effects/19-particle-engine.md) - Particle spawner, pooling, emitters (🟢 Complete)
+- [x] [20-muzzle-flash.md](./03-visual-effects/20-muzzle-flash.md) - Gun flash effects, lighting (🟢 Complete)
+- [x] [21-bullet-tracers.md](./03-feedback-systems/21-bullet-tracers.md) - Visual bullet paths (🟢 Complete)
+- [x] [22-impact-effects.md](./03-feedback-systems/22-impact-effects.md) - Surface-specific impacts (🟢 Complete)
 
 ### Explosion Systems
 - [ ] [23-explosion-core.md](./03-visual-effects/23-explosion-core.md) - Explosion mechanics, radius, damage

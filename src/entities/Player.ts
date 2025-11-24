@@ -119,6 +119,17 @@ export class Player implements Damageable {
     const amount = typeof info === 'number' ? info : info.amount;
     let remaining = amount;
 
+    // Apply knockback
+    if (typeof info !== 'number' && info.knockbackForce && info.sourcePosition) {
+      const direction = this.position.clone().sub(info.sourcePosition).normalize();
+      // Add upward component for explosions
+      direction.y += 0.5;
+      direction.normalize();
+      
+      this.velocity.add(direction.multiplyScalar(info.knockbackForce));
+      this.onGround = false; // Lift off ground
+    }
+
     if (this.armor > 0) {
       const absorbed = Math.min(this.armor, remaining);
       this.armor -= absorbed;

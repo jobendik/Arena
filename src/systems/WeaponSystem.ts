@@ -1,13 +1,7 @@
 import * as THREE from 'three';
 import { WEAPON_CONFIG } from '../config/gameConfig';
 import { WeaponType } from '../types';
-
-export interface SmokeParticle {
-  mesh: THREE.Mesh;
-  velocity: THREE.Vector3;
-  lifetime: number;
-  maxLifetime: number;
-}
+import { ParticleSystem } from './ParticleSystem';
 
 export class WeaponSystem {
   public currentWeaponType: WeaponType = WeaponType.AK47;
@@ -35,6 +29,7 @@ export class WeaponSystem {
   // Screen effects
   public fovPunch = 0;
   public cameraShake = { x: 0, y: 0, intensity: 0 };
+  public positionalShake = { x: 0, y: 0, z: 0, intensity: 0 };
   public chromaIntensity = 0;
 
   // Animation
@@ -50,8 +45,8 @@ export class WeaponSystem {
   private pendingWeaponIndex = -1;
   private lastEmptySoundTime = 0;
 
-  // Smoke
-  public smokeParticles: SmokeParticle[] = [];
+  // Systems
+  private particleSystem: ParticleSystem;
 
   // Audio
   private audioBuffers: Record<string, AudioBuffer> = {};
@@ -72,8 +67,13 @@ export class WeaponSystem {
   private muzzleLight: THREE.PointLight;
   private camera: THREE.Camera;
 
-  constructor(camera: THREE.Camera, listener: THREE.AudioListener) {
+  // Muzzle Flash
+  private muzzleFlashTimer = 0;
+  private muzzleFlashDuration = 0.05;
+
+  constructor(camera: THREE.Camera, listener: THREE.AudioListener, particleSystem: ParticleSystem) {
     this.camera = camera;
+    this.particleSystem = particleSystem;
     // Initialize weapons ammo
     this.weapons = {} as any;
     Object.values(WeaponType).forEach((type) => {
@@ -818,11 +818,8 @@ export class WeaponSystem {
     this.muzzleLight.intensity = cfg.lightIntensity;
     this.muzzleLight.distance = cfg.lightRange;
 
-    setTimeout(() => {
-      flashMat.opacity = 0;
-      flash2Mat.opacity = 0;
-      this.muzzleLight.intensity = 0;
-    }, cfg.flashDuration * 1000);
+    this.muzzleFlashTimer = cfg.flashDuration;
+    this.muzzleFlashDuration = cfg.flashDuration;
   }
 
   private triggerScreenEffects(): void {
@@ -835,40 +832,10 @@ export class WeaponSystem {
   }
 
   private spawnSmoke(): void {
-    const config = WEAPON_CONFIG[this.currentWeaponType];
-    const cfg = config.muzzle;
-
-    for (let i = 0; i < cfg.smokeParticles; i++) {
-      const smokeMesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.05, 0.05),
-        new THREE.MeshBasicMaterial({
-          color: 0xaaaaaa,
-          transparent: true,
-          opacity: 0.2,
-          side: THREE.DoubleSide,
-        })
-      );
-
-      smokeMesh.position.copy(this.muzzleFlash.position);
-      smokeMesh.position.x += (Math.random() - 0.5) * 0.1;
-      smokeMesh.position.y += (Math.random() - 0.5) * 0.1;
-      smokeMesh.rotation.z = Math.random() * Math.PI * 2;
-
-      const velocity = new THREE.Vector3(
-        (Math.random() - 0.5) * 0.5,
-        Math.random() * 0.5,
-        (Math.random() - 0.5) * 0.5 + cfg.smokeSpeed
-      );
-
-      this.weaponGroup.add(smokeMesh);
-
-      this.smokeParticles.push({
-        mesh: smokeMesh,
-        velocity,
-        lifetime: 0,
-        maxLifetime: 1.0 + Math.random() * 0.5,
-      });
-    }
+    const muzzlePos = this.getMuzzleWorldPosition();
+    const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    
+    this.particleSystem.spawnMuzzleSmoke(muzzlePos, dir);
   }
 
   public tryReload(onReloadComplete: () => void): boolean {
@@ -959,6 +926,14 @@ export class WeaponSystem {
       this.cameraShake.intensity *= config.screen.shakeDecay;
     }
 
+    // Positional shake
+    if (this.positionalShake.intensity > 0) {
+      this.positionalShake.x = (Math.random() - 0.5) * this.positionalShake.intensity;
+      this.positionalShake.y = (Math.random() - 0.5) * this.positionalShake.intensity;
+      this.positionalShake.z = (Math.random() - 0.5) * this.positionalShake.intensity;
+      this.positionalShake.intensity *= config.screen.shakeDecay;
+    }
+
     // FOV punch recovery
     this.fovPunch = Math.max(0, this.fovPunch - config.screen.fovPunchRecovery * delta);
 
@@ -1012,23 +987,24 @@ export class WeaponSystem {
       }
     }
 
-    // Update smoke
-    for (let i = this.smokeParticles.length - 1; i >= 0; i--) {
-      const smoke = this.smokeParticles[i];
-
-      smoke.mesh.position.add(smoke.velocity.clone().multiplyScalar(delta));
-      smoke.velocity.y += delta * 2;
-      smoke.velocity.multiplyScalar(0.95);
-
-      smoke.lifetime += delta;
-      const lifeRatio = 1 - (smoke.lifetime / smoke.maxLifetime);
-      (smoke.mesh.material as THREE.MeshBasicMaterial).opacity = lifeRatio * 0.2;
-      smoke.mesh.scale.setScalar(1 + (1 - lifeRatio) * 2);
-      smoke.mesh.lookAt(this.weaponGroup.parent!.position); // Look at camera
-
-      if (smoke.lifetime >= smoke.maxLifetime) {
-        this.weaponGroup.remove(smoke.mesh);
-        this.smokeParticles.splice(i, 1);
+    // Muzzle flash decay
+    if (this.muzzleFlashTimer > 0) {
+      this.muzzleFlashTimer -= delta;
+      if (this.muzzleFlashTimer <= 0) {
+        this.muzzleFlashTimer = 0;
+        (this.muzzleFlash.material as THREE.SpriteMaterial).opacity = 0;
+        (this.muzzleFlash2.material as THREE.SpriteMaterial).opacity = 0;
+        this.muzzleLight.intensity = 0;
+      } else {
+        // Fade out
+        const ratio = this.muzzleFlashTimer / this.muzzleFlashDuration;
+        (this.muzzleFlash.material as THREE.SpriteMaterial).opacity = ratio * 1.2;
+        (this.muzzleFlash2.material as THREE.SpriteMaterial).opacity = ratio * 0.9;
+        this.muzzleLight.intensity = ratio * config.muzzle.lightIntensity;
+        
+        // Rotate slightly during flash
+        this.muzzleFlash.material.rotation += delta * 10;
+        this.muzzleFlash2.material.rotation -= delta * 10;
       }
     }
 

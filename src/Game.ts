@@ -13,6 +13,7 @@ import { InputManager, GameAction } from './core/InputManager';
 import { PostProcessing } from './core/PostProcessing';
 import { HUDManager } from './ui/HUDManager';
 import { DamageTextSystem } from './ui/DamageTextSystem';
+import { ExplosionSystem } from './systems/ExplosionSystem';
 import { GameState } from './types';
 import { PLAYER_CONFIG, CAMERA_CONFIG, WEAPON_CONFIG } from './config/gameConfig';
 import { DamageType } from './core/DamageTypes';
@@ -32,6 +33,7 @@ export class Game {
   private decalSystem: DecalSystem;
   private bulletTracerSystem: BulletTracerSystem;
   private projectileSystem: ProjectileSystem;
+  private explosionSystem: ExplosionSystem;
   private damageTextSystem: DamageTextSystem;
   private arena: Arena;
   private inputManager: InputManager;
@@ -92,10 +94,10 @@ export class Game {
 
     // Initialize game systems
     this.player = new Player(listener);
-    this.weaponSystem = new WeaponSystem(this.camera, listener);
+    this.particleSystem = new ParticleSystem(this.scene);
+    this.weaponSystem = new WeaponSystem(this.camera, listener, this.particleSystem);
     this.arena = new Arena(this.scene);
     this.enemyManager = new EnemyManager(this.scene, listener);
-    this.particleSystem = new ParticleSystem(this.scene);
     this.pickupSystem = new PickupSystem(this.scene, listener, this.arena);
     this.impactSystem = new ImpactSystem(this.scene, listener);
     
@@ -108,8 +110,15 @@ export class Game {
 
     this.decalSystem = new DecalSystem(this.scene);
     this.bulletTracerSystem = new BulletTracerSystem(this.scene, this.camera);
-    this.projectileSystem = new ProjectileSystem(this.scene);
+    this.projectileSystem = new ProjectileSystem(this.scene, this.particleSystem);
     this.damageTextSystem = new DamageTextSystem(this.camera);
+    this.explosionSystem = new ExplosionSystem(
+      this.particleSystem,
+      this.enemyManager,
+      this.player,
+      this.weaponSystem,
+      this.impactSystem
+    );
     
     this.hudManager = new HUDManager();
     this.inputManager = new InputManager(CAMERA_CONFIG.mouseSensitivity);
@@ -495,6 +504,9 @@ export class Game {
             );
             if (intersects.length > 0) {
               impacts.push(intersects[0].point);
+            } else {
+              // Tracer to sky
+              impacts.push(muzzlePosition.clone().add(dir.clone().multiplyScalar(50)));
             }
           });
           
@@ -724,13 +736,20 @@ export class Game {
         
         // Surface debris particles (fewer for pellets)
         if (!isPellet) {
-          this.particleSystem.spawnSurfaceImpact(hitPoint, normal, 0x888888);
+          this.particleSystem.spawnMaterialImpact(hitPoint, normal, material);
         }
         
         // Bullet tracer handled separately for pellets
         if (!isPellet) {
           const tracerProps = this.getTracerProperties();
           this.bulletTracerSystem.createTracer(muzzlePosition, hitPoint, tracerProps.color, tracerProps.useFireTexture);
+        }
+      } else {
+        // Missed everything (Sky)
+        if (!isPellet) {
+          const tracerProps = this.getTracerProperties();
+          const farPoint = raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(100));
+          this.bulletTracerSystem.createTracer(muzzlePosition, farPoint, tracerProps.color, tracerProps.useFireTexture);
         }
       }
     }
@@ -849,6 +868,11 @@ export class Game {
 
   private updateCamera(delta: number): void {
     this.camera.position.copy(this.player.position);
+    
+    // Apply positional shake
+    this.camera.position.x += this.weaponSystem.positionalShake.x;
+    this.camera.position.y += this.weaponSystem.positionalShake.y;
+    this.camera.position.z += this.weaponSystem.positionalShake.z;
 
     // Apply recoil and camera shake
     this.camera.rotation.order = 'YXZ';
@@ -944,43 +968,6 @@ export class Game {
   };
 
   private createExplosion(position: THREE.Vector3, radius: number, maxDamage: number): void {
-    this.particleSystem.spawnExplosion(position);
-    
-    // Camera shake based on distance
-    const distToPlayer = this.player.position.distanceTo(position);
-    const shakeIntensity = Math.max(0, 1 - distToPlayer / 20) * 0.5;
-    this.weaponSystem.cameraShake.intensity += shakeIntensity;
-
-    // Damage enemies in radius
-    this.enemyManager.getEnemies().forEach(enemy => {
-      const dist = enemy.mesh.position.distanceTo(position);
-      if (dist < radius) {
-        const damage = maxDamage * (1 - dist / radius);
-        const killed = this.enemyManager.damageEnemy(enemy, {
-          amount: damage,
-          type: DamageType.Explosive,
-          sourcePosition: position,
-          knockbackForce: 10 * (1 - dist / radius)
-        }, false); // Explosions don't count as headshots
-
-        if (killed) {
-          this.gameState.kills++;
-          this.gameState.score += enemy.score;
-          this.enemyManager.removeEnemy(enemy);
-        }
-      }
-    });
-
-    // Damage player in radius
-    if (distToPlayer < radius) {
-      const damage = maxDamage * (1 - distToPlayer / radius);
-      this.player.takeDamage({
-        amount: damage,
-        type: DamageType.Explosive,
-        sourcePosition: position,
-        knockbackForce: 15 * (1 - distToPlayer / radius)
-      });
-      this.hudManager.flashDamage(0); // Flash center
-    }
+    this.explosionSystem.createExplosion(position, radius, maxDamage);
   }
 }

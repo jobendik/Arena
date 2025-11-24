@@ -13,6 +13,7 @@ interface ImpactAudioBuffers {
   bodyImpacts: AudioBuffer[];
   deathImpact?: AudioBuffer;
   hitImpact?: AudioBuffer;
+  explosion?: AudioBuffer;
   bulletWhiz?: AudioBuffer;
   shellDrop?: AudioBuffer;
   surfaceImpacts: {
@@ -59,6 +60,11 @@ export class ImpactSystem {
     audioLoader.load('assets/audio/impact/Hit-Impact.mp3_f966c566.mp3', (buffer) => {
       this.audioBuffers.hitImpact = buffer;
     }, undefined, (err) => console.warn('Failed to load hit impact:', err));
+
+    // Explosion (Placeholder using Shotgun Fire pitched down)
+    audioLoader.load('assets/audio/weapons/Shotgun-Fire.mp3_c4d738ce.mp3', (buffer) => {
+      this.audioBuffers.explosion = buffer;
+    }, undefined, (err) => console.warn('Failed to load explosion sound:', err));
 
     // Bullet Whiz (using a tail sound as placeholder)
     audioLoader.load('assets/audio/weapons/Tec-9-Tail.mp3_af6632ea.mp3', (buffer) => {
@@ -206,6 +212,30 @@ export class ImpactSystem {
     sound.setRefDistance(3);
     sound.setVolume(0.3);
     sound.setPlaybackRate(2.0 + Math.random() * 0.5); // High pitch for small object
+    sound.setLoop(false);
+    
+    const temp = new THREE.Object3D();
+    temp.position.copy(position);
+    this.scene.add(temp);
+    temp.add(sound);
+    
+    sound.play();
+    sound.onEnded = () => {
+      this.scene.remove(temp);
+    };
+  }
+
+  /**
+   * Play massive explosion sound
+   */
+  public playExplosion(position: THREE.Vector3): void {
+    if (!this.audioBuffers.explosion) return;
+
+    const sound = new THREE.PositionalAudio(this.audioListener);
+    sound.setBuffer(this.audioBuffers.explosion);
+    sound.setRefDistance(20); // Heard from far away
+    sound.setVolume(2.0); // Very loud
+    sound.setPlaybackRate(0.5); // Deep, bassy rumble
     sound.setLoop(false);
     
     const temp = new THREE.Object3D();
