@@ -13,6 +13,7 @@ import { InputManager, GameAction } from './core/InputManager';
 import { PostProcessing } from './core/PostProcessing';
 import { HUDManager } from './ui/HUDManager';
 import { DamageTextSystem } from './ui/DamageTextSystem';
+import { StartScreen } from './ui/StartScreen';
 import { ExplosionSystem } from './systems/ExplosionSystem';
 import { GameState } from './types';
 import { PLAYER_CONFIG, CAMERA_CONFIG, WEAPON_CONFIG } from './config/gameConfig';
@@ -38,6 +39,7 @@ export class Game {
   private arena: Arena;
   private inputManager: InputManager;
   private hudManager: HUDManager;
+  private startScreen?: StartScreen;
 
   private gameState: GameState;
   private lastTime = 0;
@@ -51,6 +53,14 @@ export class Game {
   private hitStreakCount = 0;
 
   private respawnSound?: THREE.Audio;
+  private musicTrack?: THREE.Audio;
+  private musicPlaying = false;
+
+  // Intro sequence
+  private introActive = false;
+  private introFallSpeed = 0;
+  private introStartHeight = 400; // MUCH higher start!
+  private introTargetHeight = 1.6; // Player eye level
 
   constructor() {
     console.log('Initializing game...');
@@ -76,6 +86,14 @@ export class Game {
       this.respawnSound?.setVolume(0.5);
     });
 
+    // Load Music Track
+    this.musicTrack = new THREE.Audio(listener);
+    audioLoader.load('assets/music/psytrance.mp3', (buffer) => {
+      this.musicTrack?.setBuffer(buffer);
+      this.musicTrack?.setLoop(true);
+      this.musicTrack?.setVolume(0.3);
+    });
+
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
@@ -89,8 +107,10 @@ export class Game {
       console.error('Game container not found!');
       throw new Error('Game container element not found');
     }
-    container.appendChild(this.renderer.domElement);
-    console.log('Renderer added to DOM');
+
+    // Initialize start screen
+    this.startScreen = new StartScreen(container, () => this.startGame());
+    console.log('Start screen initialized');
 
     // Initialize game systems
     this.player = new Player(listener);
@@ -124,6 +144,9 @@ export class Game {
     this.inputManager = new InputManager(CAMERA_CONFIG.mouseSensitivity);
     this.postProcessing = new PostProcessing(this.renderer, this.scene, this.camera);
 
+    // Hide HUD initially for start screen
+    this.hudManager.hideHUD();
+
     // Initialize game state
     this.gameState = {
       running: false,
@@ -136,6 +159,7 @@ export class Game {
       timeStarted: 0,
       waveInProgress: false,
       betweenWaves: false,
+      inStartScreen: true,
     };
 
     this.setupScene();
@@ -240,7 +264,8 @@ export class Game {
     this.skyMaterial = skyMat;
     this.scene.add(new THREE.Mesh(skyGeo, skyMat));
 
-    this.scene.fog = new THREE.FogExp2(0x0a0a1a, 0.012);
+    // Reduce fog density so level is visible from high up during intro
+    this.scene.fog = new THREE.FogExp2(0x0a0a1a, 0.003);
     this.scene.add(this.camera);
   }
 
@@ -292,20 +317,49 @@ export class Game {
 
     window.addEventListener('resize', () => this.onWindowResize());
 
+    // M key to toggle music
+    window.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 'm') {
+        this.toggleMusic();
+      }
+    });
+
     document.addEventListener('click', () => {
-      if (!this.gameState.running && !this.gameState.paused) {
+      if (!this.gameState.running && !this.gameState.paused && !this.gameState.inStartScreen) {
         this.startGame();
       } else if (this.gameState.paused) {
         this.togglePause();
-      } else {
+      } else if (this.gameState.running) {
         document.body.requestPointerLock();
       }
     });
   }
 
   private startGame(): void {
+    // Stop start screen
+    if (this.startScreen) {
+      this.startScreen.stop();
+      this.startScreen = undefined;
+    }
+
+    // Request fullscreen
+    try {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.log('Fullscreen request failed:', err);
+      });
+    } catch (err) {
+      console.log('Fullscreen not supported:', err);
+    }
+
+    // Add game renderer to container
+    const container = document.getElementById('game-container');
+    if (container) {
+      container.appendChild(this.renderer.domElement);
+    }
+
     this.hudManager.hideStartScreen();
     this.hudManager.hideGameOver();
+    this.hudManager.showHUD();
 
     // Reset game state
     this.gameState = {
@@ -319,6 +373,7 @@ export class Game {
       timeStarted: performance.now(),
       waveInProgress: false,
       betweenWaves: false,
+      inStartScreen: false,
     };
 
     // Reset systems
@@ -329,13 +384,28 @@ export class Game {
     this.pickupSystem.clear();
     this.hudManager.reset();
 
-    // Spawn initial pickups
+    // Spawn initial pickups (but don't show HUD yet)
     this.pickupSystem.spawnWavePickups(this.player.health, PLAYER_CONFIG.maxHealth, this.gameState.wave);
 
-    this.updateHUD();
-    this.renderer.domElement.requestPointerLock();
+    // DON'T update HUD yet - wait until after intro lands
+    // this.updateHUD();
 
-    setTimeout(() => this.startWave(), 1000);
+    // Start dramatic intro sequence
+    this.introActive = true;
+    this.introFallSpeed = 30; // Start with initial downward velocity!
+    this.player.position.y = this.introStartHeight;
+    this.camera.position.copy(this.player.position);
+    
+    // Look down at the arena (negative pitch to look down)
+    this.player.rotation.x = -Math.PI / 3; // Look down at arena
+    this.player.rotation.y = 0;
+
+    // Start game animation loop
+    this.lastTime = performance.now();
+    if (this.respawnSound && this.respawnSound.buffer) {
+      this.respawnSound.play();
+    }
+    this.animate();
   }
 
   private startWave(): void {
@@ -412,6 +482,20 @@ export class Game {
     }
   }
 
+  private toggleMusic(): void {
+    if (!this.musicTrack || !this.musicTrack.buffer) return;
+
+    if (this.musicPlaying) {
+      this.musicTrack.pause();
+      this.musicPlaying = false;
+      console.log('Music paused');
+    } else {
+      this.musicTrack.play();
+      this.musicPlaying = true;
+      console.log('Music playing');
+    }
+  }
+
   // private quitToMenu(): void {
   //   this.gameState.running = false;
   //   this.gameState.paused = false;
@@ -457,8 +541,148 @@ export class Game {
     this.hudManager.updateEnemiesRemaining(this.enemyManager.getEnemyCount());
   }
 
+  private updateIntroSequence(delta: number): void {
+    // EXTREME acceleration - feel the speed increase!
+    this.introFallSpeed += 90 * delta; // Faster acceleration!
+    
+    // Apply fall
+    this.player.position.y -= this.introFallSpeed * delta;
+    
+    // Calculate speed factor for all effects
+    const speedFactor = Math.min(this.introFallSpeed / 120, 1);
+    const distanceToGround = this.player.position.y - this.introTargetHeight;
+    const proximityFactor = 1 - Math.max(0, Math.min(1, distanceToGround / 100));
+    
+    // EXTREME FOV increase - up to +40 FOV!
+    this.camera.fov = CAMERA_CONFIG.baseFOV + (speedFactor * 40);
+    this.camera.updateProjectionMatrix();
+    
+    // Add chromatic aberration for speed effect
+    this.postProcessing.setChromaAmount(speedFactor * 3);
+    
+    // Camera roll as we fall (spinning sensation)
+    const rollAmount = speedFactor * Math.sin(this.gameTime * 3) * 0.1;
+    
+    // Update camera with roll
+    this.camera.position.copy(this.player.position);
+    this.camera.rotation.order = 'YXZ';
+    this.camera.rotation.y = this.player.rotation.y;
+    this.camera.rotation.x = this.player.rotation.x;
+    this.camera.rotation.z = rollAmount;
+    
+    // INTENSE speed blur shake effect as we get closer
+    if (proximityFactor > 0.3) {
+      const shakeIntensity = proximityFactor * 0.05;
+      this.camera.position.x += (Math.random() - 0.5) * shakeIntensity;
+      this.camera.position.z += (Math.random() - 0.5) * shakeIntensity;
+    }
+    
+    // MASSIVE particle trails - multiple colors!
+    const particleSpawnChance = 0.5 + (speedFactor * 0.5); // Up to 100% spawn rate!
+    if (Math.random() < particleSpawnChance) {
+      // Cyan trail
+      this.particleSystem.spawn(
+        this.player.position.clone().add(new THREE.Vector3(
+          (Math.random() - 0.5) * 4,
+          Math.random() * 3,
+          (Math.random() - 0.5) * 4
+        )),
+        0x00ffff,
+        5
+      );
+      
+      // Orange/red speed lines
+      if (speedFactor > 0.5) {
+        this.particleSystem.spawn(
+          this.player.position.clone().add(new THREE.Vector3(
+            (Math.random() - 0.5) * 5,
+            Math.random() * 4,
+            (Math.random() - 0.5) * 5
+          )),
+          0xff6600,
+          4
+        );
+      }
+      
+      // Magenta energy at high speed
+      if (speedFactor > 0.7) {
+        this.particleSystem.spawn(
+          this.player.position.clone().add(new THREE.Vector3(
+            (Math.random() - 0.5) * 6,
+            Math.random() * 5,
+            (Math.random() - 0.5) * 6
+          )),
+          0xff00ff,
+          6
+        );
+      }
+    }
+    
+    // Check for impact
+    if (this.player.position.y <= this.introTargetHeight) {
+      // ULTIMATE CRASH LANDING!!!
+      this.player.position.y = this.introTargetHeight;
+      this.introActive = false;
+      
+      // INSANE camera shake!!!
+      this.weaponSystem.cameraShake.intensity = 0.8;
+      
+      // MASSIVE EXPLOSION - Multiple waves of particles!
+      const landPos = this.player.position.clone();
+      
+      // Core explosion - orange/red
+      this.particleSystem.spawn(landPos, 0xff3300, 100);
+      this.particleSystem.spawn(landPos, 0xff6600, 80);
+      
+      // Secondary blast - cyan/blue
+      this.particleSystem.spawn(landPos, 0x00ffff, 70);
+      this.particleSystem.spawn(landPos, 0x0088ff, 60);
+      
+      // Energy burst - magenta/purple
+      this.particleSystem.spawn(landPos, 0xff00ff, 50);
+      this.particleSystem.spawn(landPos, 0xaa00ff, 40);
+      
+      // White flash burst
+      this.particleSystem.spawn(landPos, 0xffffff, 30);
+      
+      // Shockwave ring particles
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const distance = 3;
+        const ringPos = landPos.clone().add(new THREE.Vector3(
+          Math.cos(angle) * distance,
+          0.5,
+          Math.sin(angle) * distance
+        ));
+        this.particleSystem.spawn(ringPos, 0xffff00, 20);
+      }
+      
+      // Start music at the exact moment of landing!
+      if (this.musicTrack && this.musicTrack.buffer && !this.musicPlaying) {
+        this.musicTrack.play();
+        this.musicPlaying = true;
+      }
+      
+      // Reset effects
+      this.camera.fov = CAMERA_CONFIG.baseFOV;
+      this.camera.rotation.z = 0;
+      this.camera.updateProjectionMatrix();
+      this.postProcessing.setChromaAmount(0);
+      
+      // Enable pointer lock and start wave with slight delay for dramatic effect
+      this.renderer.domElement.requestPointerLock();
+      setTimeout(() => this.startWave(), 800);
+    }
+  }
+
   private update(delta: number): void {
     if (!this.gameState.running || this.gameState.paused) return;
+
+    // Handle intro sequence
+    if (this.introActive) {
+      this.updateIntroSequence(delta);
+      return;
+    }
 
     // Input
     this.inputManager.update();
@@ -956,11 +1180,15 @@ export class Game {
   }
 
   public start(): void {
-    this.lastTime = performance.now();
-    if (this.respawnSound && this.respawnSound.buffer) {
-      this.respawnSound.play();
+    if (this.gameState.inStartScreen && this.startScreen) {
+      this.startScreen.start();
+    } else {
+      this.lastTime = performance.now();
+      if (this.respawnSound && this.respawnSound.buffer) {
+        this.respawnSound.play();
+      }
+      this.animate();
     }
-    this.animate();
   }
 
   private animate = (): void => {

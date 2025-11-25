@@ -497,6 +497,20 @@ export class HUDManager {
     this.killfeed.addKill(killer, victim, weapon, isHeadshot, isMultiKill);
   }
 
+  public hideHUD(): void {
+    const hud = document.getElementById('hud');
+    if (hud) {
+      hud.style.display = 'none';
+    }
+  }
+
+  public showHUD(): void {
+    const hud = document.getElementById('hud');
+    if (hud) {
+      hud.style.display = 'block';
+    }
+  }
+
   public reset(): void {
     // Reset wave tracker so first wave animation shows
     this.currentWave = 0;

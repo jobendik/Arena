@@ -159,6 +159,7 @@ export interface GameState {
   timeStarted: number;
   waveInProgress: boolean;
   betweenWaves: boolean;
+  inStartScreen: boolean;
 }
 
 // Surface materials for impact system
