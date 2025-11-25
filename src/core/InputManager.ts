@@ -55,7 +55,7 @@ export class InputManager {
     [GameAction.Interact]: ['KeyE'],
     [GameAction.Grenade]: ['KeyG'],
     [GameAction.Fire]: ['Mouse0'],
-    [GameAction.Aim]: ['Mouse1'],
+    [GameAction.Aim]: ['Mouse2'],
     [GameAction.NextWeapon]: ['WheelUp'],
     [GameAction.PrevWeapon]: ['WheelDown'],
     [GameAction.Weapon1]: ['Digit1'],

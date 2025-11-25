@@ -14,6 +14,7 @@ import { PostProcessing } from './core/PostProcessing';
 import { HUDManager } from './ui/HUDManager';
 import { DamageTextSystem } from './ui/DamageTextSystem';
 import { StartScreen } from './ui/StartScreen';
+import { MobileControls } from './ui/MobileControls';
 import { ExplosionSystem } from './systems/ExplosionSystem';
 import { GameState } from './types';
 import { PLAYER_CONFIG, CAMERA_CONFIG, WEAPON_CONFIG } from './config/gameConfig';
@@ -40,6 +41,8 @@ export class Game {
   private inputManager: InputManager;
   private hudManager: HUDManager;
   private startScreen?: StartScreen;
+  private mobileControls?: MobileControls;
+  private isMobile: boolean;
 
   private gameState: GameState;
   private lastTime = 0;
@@ -143,6 +146,13 @@ export class Game {
     this.hudManager = new HUDManager();
     this.inputManager = new InputManager(CAMERA_CONFIG.mouseSensitivity);
     this.postProcessing = new PostProcessing(this.renderer, this.scene, this.camera);
+
+    // Initialize mobile controls if on mobile device
+    this.isMobile = MobileControls.isMobileDevice();
+    if (this.isMobile) {
+      this.mobileControls = new MobileControls();
+      console.log('Mobile controls initialized');
+    }
 
     // Hide HUD initially for start screen
     this.hudManager.hideHUD();
@@ -330,9 +340,53 @@ export class Game {
       } else if (this.gameState.paused) {
         this.togglePause();
       } else if (this.gameState.running) {
-        document.body.requestPointerLock();
+        this.tryRequestPointerLock();
       }
     });
+  }
+
+  private tryRequestPointerLock(): void {
+    if (this.isMobile) {
+      console.log('Pointer lock disabled on mobile.');
+      return;
+    }
+
+    try {
+      const el: any = this.renderer && (this.renderer as any).domElement;
+      const request = el && (el.requestPointerLock || el.mozRequestPointerLock || el.webkitRequestPointerLock);
+      if (request) {
+        request.call(el);
+        return;
+      }
+
+      const docReq = (document as any).body && ((document as any).body.requestPointerLock || (document as any).body.mozRequestPointerLock || (document as any).body.webkitRequestPointerLock);
+      if (docReq) {
+        docReq.call((document as any).body);
+        return;
+      }
+
+      console.warn('Pointer lock API not available in this environment.');
+    } catch (err) {
+      console.warn('Failed to request pointer lock:', err);
+    }
+  }
+
+  private tryExitPointerLock(): void {
+    if (this.isMobile) {
+      // Nothing to do on mobile
+      return;
+    }
+
+    try {
+      const exit = (document as any).exitPointerLock || (document as any).mozExitPointerLock || (document as any).webkitExitPointerLock;
+      if (exit) {
+        exit.call(document);
+        return;
+      }
+      console.warn('Pointer lock exit not available in this environment.');
+    } catch (err) {
+      console.warn('Failed to exit pointer lock:', err);
+    }
   }
 
   private startGame(): void {
@@ -360,6 +414,11 @@ export class Game {
     this.hudManager.hideStartScreen();
     this.hudManager.hideGameOver();
     this.hudManager.showHUD();
+
+    // Show mobile controls if on mobile
+    if (this.isMobile && this.mobileControls) {
+      this.mobileControls.show();
+    }
 
     // Reset game state
     this.gameState = {
@@ -476,9 +535,9 @@ export class Game {
     this.hudManager.showPauseMenu(this.gameState.paused);
 
     if (this.gameState.paused) {
-      document.exitPointerLock();
+      this.tryExitPointerLock();
     } else {
-      this.renderer.domElement.requestPointerLock();
+      this.tryRequestPointerLock();
     }
   }
 
@@ -506,7 +565,7 @@ export class Game {
 
   private gameOver(): void {
     this.gameState.running = false;
-    document.exitPointerLock();
+    this.tryExitPointerLock();
 
     // Play death sound
     this.player.playDeathSound();
@@ -670,7 +729,7 @@ export class Game {
       this.postProcessing.setChromaAmount(0);
       
       // Enable pointer lock and start wave with slight delay for dramatic effect
-      this.renderer.domElement.requestPointerLock();
+      this.tryRequestPointerLock();
       setTimeout(() => this.startWave(), 800);
     }
   }
@@ -684,26 +743,77 @@ export class Game {
       return;
     }
 
-    // Input
-    this.inputManager.update();
-    const inputDir = this.inputManager.getMovementInput();
-    const wantsToSprint = this.inputManager.isActionPressed(GameAction.Sprint) && inputDir.length() > 0;
-    const wantsJump = this.player.jumpBufferTimer > 0;
-    const wantsCrouch = this.inputManager.isActionPressed(GameAction.Crouch);
-    const canCutJump = !this.inputManager.isActionPressed(GameAction.Jump) && this.player.canCutJump;
+    // Input - use mobile controls if on mobile, otherwise use keyboard/mouse
+    let inputDir: THREE.Vector3;
+    let wantsToSprint: boolean;
+    let wantsJump: boolean;
+    let wantsCrouch: boolean;
+    let canCutJump: boolean;
+    let isFiring: boolean;
+
+    if (this.isMobile && this.mobileControls) {
+      // Mobile input
+      this.mobileControls.update();
+
+      // Convert 2D mobile input (x, y) -> 3D world input (x, 0, z)
+      // Convert 2D mobile input (x, y) -> 3D world input (x, 0, z)
+      // Invert Y because joystick up should move player forward (negative Z in world space)
+      inputDir = new THREE.Vector3(
+        this.mobileControls.movementInput.x,
+        0,
+        -this.mobileControls.movementInput.y
+      );
+      wantsToSprint = inputDir.length() > 0.5; // Sprint when moving joystick far
+      wantsJump = this.mobileControls.jumpPressed;
+      wantsCrouch = false; // No crouch on mobile for now
+      canCutJump = !this.mobileControls.jumpPressed && this.player.canCutJump;
+      isFiring = this.mobileControls.firePressed;
+
+      // Handle reload button
+      if (this.mobileControls.reloadPressed) {
+        this.tryReload();
+      }
+
+      // Handle weapon switching
+      if (this.mobileControls.weaponSwitchRequested !== 0) {
+        this.weaponSystem.scrollWeapon(this.mobileControls.weaponSwitchRequested);
+        this.hudManager.updateWeaponName(WEAPON_CONFIG[this.weaponSystem.currentWeaponType].name);
+        this.mobileControls.weaponSwitchRequested = 0;
+      }
+
+      // Update player rotation from mobile touch (apply multiplier for responsiveness)
+      const mobileLookMultiplier = 1.8; // make touch look feel snappier
+      this.player.rotation.y -= this.mobileControls.lookDelta.x * mobileLookMultiplier;
+      this.player.rotation.x -= this.mobileControls.lookDelta.y * mobileLookMultiplier;
+      this.player.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.player.rotation.x));
+
+      // Jump handling
+      if (wantsJump) {
+        this.player.jumpBufferTimer = PLAYER_CONFIG.jumpBuffer;
+      }
+    } else {
+      // Desktop input
+      this.inputManager.update();
+      inputDir = this.inputManager.getMovementInput();
+      wantsToSprint = this.inputManager.isActionPressed(GameAction.Sprint) && inputDir.length() > 0;
+      wantsJump = this.player.jumpBufferTimer > 0;
+      wantsCrouch = this.inputManager.isActionPressed(GameAction.Crouch);
+      canCutJump = !this.inputManager.isActionPressed(GameAction.Jump) && this.player.canCutJump;
+      isFiring = this.inputManager.isActionPressed(GameAction.Fire);
+
+      // Update player rotation from mouse
+      this.player.rotation.y -= this.inputManager.mouse.deltaX;
+      this.player.rotation.x -= this.inputManager.mouse.deltaY;
+      this.player.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.player.rotation.x));
+      this.inputManager.resetMouseDelta();
+    }
 
     // Update player
     this.player.update(delta, inputDir, wantsToSprint, wantsJump, wantsCrouch, canCutJump, this.arena.arenaObjects);
     this.player.updatePowerups(delta);
 
-    // Update player rotation from mouse
-    this.player.rotation.y -= this.inputManager.mouse.deltaX;
-    this.player.rotation.x -= this.inputManager.mouse.deltaY;
-    this.player.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.player.rotation.x));
-    this.inputManager.resetMouseDelta();
-
     // Shooting
-    if (this.inputManager.isActionPressed(GameAction.Fire)) {
+    if (isFiring) {
       const { direction, shotFired, directions } = this.weaponSystem.shoot(
         this.camera,
         this.player.onGround,
@@ -748,10 +858,15 @@ export class Game {
       }
     }
 
-    // Update weapon
+    // Update weapon: feed mouse movement or mobile look delta for sway/effects
+    let mouseMovement = { x: this.inputManager.mouse.deltaX, y: this.inputManager.mouse.deltaY };
+    if (this.isMobile && this.mobileControls) {
+      mouseMovement = { x: this.mobileControls.lookDelta.x, y: this.mobileControls.lookDelta.y };
+    }
+
     this.weaponSystem.update(
       delta,
-      { x: this.inputManager.mouse.deltaX, y: this.inputManager.mouse.deltaY },
+      mouseMovement,
       this.player.isSprinting,
       this.player.headBobTime
     );
