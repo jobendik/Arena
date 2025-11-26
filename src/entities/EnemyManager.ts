@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ENEMY_TYPES } from '../config/gameConfig';
 import { DamageInfo } from '../core/DamageTypes';
+import { EnemyFactory } from './EnemyFactory';
 
 export interface Enemy {
   mesh: THREE.Group;
@@ -13,10 +14,6 @@ export interface Enemy {
   accuracy: number;
   score: number;
   lastShotTime: number;
-  body: THREE.Mesh;
-  head: THREE.Mesh;
-  ring: THREE.Mesh;
-  muzzleFlash: THREE.Mesh | null;
   strafeDir: number;
   strafeTime: number;
   weaponType: string;
@@ -24,6 +21,11 @@ export interface Enemy {
   hurtSounds: THREE.Audio[];
   deathSound: THREE.Audio;
   jumpSound: THREE.Audio;
+  // Changed to Object3D to support Groups (like the new capsule body)
+  body: THREE.Object3D;
+  head: THREE.Object3D;
+  ring?: THREE.Mesh;
+  muzzleFlash?: THREE.Mesh;
 }
 
 export class EnemyManager {
@@ -86,67 +88,40 @@ export class EnemyManager {
 
   public createEnemy(type: string, position: THREE.Vector3): void {
     const typeData = ENEMY_TYPES[type];
-    const group = new THREE.Group();
+    if (!typeData) {
+      console.error(`Unknown enemy type: ${type}`);
+      return;
+    }
 
-    const bodyMat = new THREE.MeshStandardMaterial({
-      color: typeData.color,
-      emissive: typeData.color,
-      emissiveIntensity: 0.2,
-      metalness: 0.3,
-      roughness: 0.7,
-    });
-
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 1.4, 8), bodyMat);
-    body.position.y = 0.7;
-    body.castShadow = true;
-    group.add(body);
-
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), bodyMat.clone());
-    head.position.y = 1.65;
-    head.castShadow = true;
-    group.add(head);
-
-    const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const leftEye = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.1), eyeMat);
-    leftEye.position.set(-0.15, 1.7, 0.26);
-    group.add(leftEye);
-    const rightEye = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.1), eyeMat);
-    rightEye.position.set(0.15, 1.7, 0.26);
-    group.add(rightEye);
-
-    const gunGroup = new THREE.Group();
-    const gun = new THREE.Mesh(
-      new THREE.BoxGeometry(0.06, 0.06, 0.6),
-      new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.9, roughness: 0.3 })
-    );
-    gun.position.z = 0.3;
-    gunGroup.add(gun);
-
-    const enemyMuzzle = new THREE.Mesh(
-      new THREE.SphereGeometry(0.05, 8, 8),
-      new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0 })
-    );
-    enemyMuzzle.position.z = 0.7;
-    gunGroup.add(enemyMuzzle);
-    gunGroup.position.set(0.3, 1.0, 0);
-    group.add(gunGroup);
-
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(0.6, 0.05, 8, 16),
-      new THREE.MeshBasicMaterial({ color: typeData.color })
-    );
-    ring.position.y = 0.7;
-    ring.rotation.x = Math.PI / 2;
-    group.add(ring);
-
+    // Use Factory to create mesh
+    const group = EnemyFactory.createEnemyMesh(type, typeData.color);
     group.position.copy(position);
     this.scene.add(group);
 
+    // Find body parts
+    let body: THREE.Object3D | undefined;
+    let head: THREE.Object3D | undefined;
+
+    group.traverse((child) => {
+      if (child.name === 'body') body = child;
+      if (child.name === 'head') head = child;
+    });
+
+    // Fallbacks
+    if (!body) {
+      // If no body named, use the first mesh found or create a dummy
+      const firstMesh = group.children.find(c => c instanceof THREE.Mesh);
+      body = firstMesh || new THREE.Mesh();
+    }
+    if (!head) {
+      head = body; // Fallback to body if no head
+    }
+
     // Assign weapon based on enemy type
     let weaponType = 'pistolShoot';
-    if (type === 'soldier') {
+    if (type === 'shooter' || type === 'soldier') {
       weaponType = 'akShoot';
-    } else if (type === 'heavy') {
+    } else if (type === 'heavy' || type === 'viper') {
       weaponType = 'awpShoot';
     }
 
@@ -168,12 +143,11 @@ export class EnemyManager {
     group.add(jumpSound);
 
     // Assign buffers based on enemy type
-    if (type === 'heavy') {
-      // Use Kulu sounds for heavy
+    if (type === 'heavy' || type === 'bulwark') {
+      // Use Kulu sounds for heavy types
       if (this.audioBuffers['deathKulu']) deathSound.setBuffer(this.audioBuffers['deathKulu']);
       if (this.audioBuffers['jumpKulu1']) jumpSound.setBuffer(this.audioBuffers['jumpKulu1']);
-      
-      // Randomize hurt sounds
+
       const kuluHurts = ['hurtKulu1', 'hurtKulu2', 'hurtKulu3'];
       hurtSounds.forEach((sound, index) => {
         const key = kuluHurts[index % kuluHurts.length];
@@ -183,7 +157,7 @@ export class EnemyManager {
       // Default to Female sounds for others
       if (this.audioBuffers['deathFemale']) deathSound.setBuffer(this.audioBuffers['deathFemale']);
       if (this.audioBuffers['jumpFemale']) jumpSound.setBuffer(this.audioBuffers['jumpFemale']);
-      
+
       const femaleHurts = ['hurtFemale1', 'hurtFemale2', 'hurtFemale3'];
       hurtSounds.forEach((sound, index) => {
         const key = femaleHurts[index % femaleHurts.length];
@@ -207,10 +181,6 @@ export class EnemyManager {
       accuracy: typeData.accuracy,
       score: typeData.score,
       lastShotTime: 0,
-      body,
-      head,
-      ring,
-      muzzleFlash: enemyMuzzle,
       strafeDir: Math.random() > 0.5 ? 1 : -1,
       strafeTime: 0,
       weaponType,
@@ -218,6 +188,8 @@ export class EnemyManager {
       hurtSounds,
       deathSound,
       jumpSound,
+      body,
+      head
     });
   }
 
@@ -226,23 +198,20 @@ export class EnemyManager {
     playerPos: THREE.Vector3,
     obstacles: Array<{ mesh: THREE.Mesh; box: THREE.Box3 }>
   ): boolean {
-    // Cast ray from enemy eye level to player center mass
     const eyeHeight = 1.5;
     const from = enemyPos.clone();
     from.y = eyeHeight;
     const to = playerPos.clone();
-    to.y = 0.8; // Player center mass
+    to.y = 0.8;
 
     const direction = to.clone().sub(from).normalize();
     const distance = from.distanceTo(to);
 
-    const raycaster = new THREE.Raycaster(from, direction, 0, distance - 0.5); // Stop before player
+    const raycaster = new THREE.Raycaster(from, direction, 0, distance - 0.5);
 
-    // Check if ray hits any obstacle - use recursive true to check children
     const meshes = obstacles.map(obj => obj.mesh);
     const intersects = raycaster.intersectObjects(meshes, true);
 
-    // If there are intersections before reaching the player, no line of sight
     return intersects.length === 0;
   }
 
@@ -251,10 +220,12 @@ export class EnemyManager {
     playerPos: THREE.Vector3,
     obstacles: Array<{ x: number; z: number; width: number; depth: number }>,
     arenaObjects: Array<{ mesh: THREE.Mesh; box: THREE.Box3 }>,
-    onEnemyShoot: (enemy: Enemy) => void
+    onEnemyShoot: (enemy: Enemy) => void,
+    onEnemyHitPlayer?: (enemy: Enemy) => void // New callback for melee
   ): void {
     const playerPos2D = playerPos.clone();
     playerPos2D.y = 1;
+    const now = performance.now();
 
     this.enemies.forEach((enemy) => {
       const enemyPos = enemy.mesh.position.clone();
@@ -266,10 +237,10 @@ export class EnemyManager {
       // Look at player
       enemy.mesh.lookAt(playerPos2D);
 
-      // Movement with obstacle avoidance
+      // --- MOVEMENT LOGIC ---
       let moveDir = dir.clone();
 
-      // Check for obstacles
+      // Obstacle avoidance
       obstacles.forEach((obs) => {
         const toObstacle = new THREE.Vector2(obs.x - enemyPos.x, obs.z - enemyPos.z);
         const obsDist = toObstacle.length();
@@ -280,16 +251,22 @@ export class EnemyManager {
         }
       });
 
-      // Strafe logic
-      enemy.strafeTime += delta;
-      if (enemy.strafeTime > 2) {
-        enemy.strafeDir *= -1;
-        enemy.strafeTime = 0;
-      }
+      // Behavior based on type
+      if (enemy.type === 'swarmer' || enemy.type === 'razor' || enemy.type === 'spectre') {
+        // Melee / Rush behavior: Run straight at player
+        // No strafing, just pure aggression
+      } else {
+        // Ranged behavior: Strafe and maintain distance
+        enemy.strafeTime += delta;
+        if (enemy.strafeTime > 2) {
+          enemy.strafeDir *= -1;
+          enemy.strafeTime = 0;
+        }
 
-      if (dist < 15 && dist > 5) {
-        const strafeVec = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(enemy.strafeDir);
-        moveDir.add(strafeVec.multiplyScalar(0.3));
+        if (dist < 15 && dist > 5) {
+          const strafeVec = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(enemy.strafeDir);
+          moveDir.add(strafeVec.multiplyScalar(0.3));
+        }
       }
 
       moveDir.normalize();
@@ -297,65 +274,115 @@ export class EnemyManager {
       // Calculate intended movement
       let newX = enemy.mesh.position.x;
       let newZ = enemy.mesh.position.z;
-      
-      if (dist > 8) {
-        newX += moveDir.x * enemy.speed * delta;
-        newZ += moveDir.z * enemy.speed * delta;
-      } else if (dist < 6) {
-        newX -= dir.x * enemy.speed * 0.3 * delta;
-        newZ -= dir.z * enemy.speed * 0.3 * delta;
+
+      // Speed modification
+      let currentSpeed = enemy.speed;
+
+      // Movement rules
+      if (enemy.type === 'swarmer' || enemy.type === 'razor' || enemy.type === 'spectre') {
+        // Always move towards player
+        newX += moveDir.x * currentSpeed * delta;
+        newZ += moveDir.z * currentSpeed * delta;
+
+        // Melee Attack Check
+        if (dist < 1.5 && onEnemyHitPlayer) {
+          // Cooldown for melee? For now, just hit every frame (player has invuln frames usually)
+          // Or better, check a timer.
+          if (now - enemy.lastShotTime > 1000) { // 1 sec cooldown on melee hit
+            onEnemyHitPlayer(enemy);
+            enemy.lastShotTime = now;
+          }
+        }
+
+      } else {
+        // Ranged logic
+        if (dist > 8) {
+          newX += moveDir.x * currentSpeed * delta;
+          newZ += moveDir.z * currentSpeed * delta;
+        } else if (dist < 6) {
+          newX -= dir.x * currentSpeed * 0.3 * delta;
+          newZ -= dir.z * currentSpeed * 0.3 * delta;
+        }
       }
 
-      // Check collision with arena objects before moving
+      // Collision check
       const enemyRadius = 0.5;
       let canMove = true;
-      
+
       for (const obj of arenaObjects) {
-        // Expand the bounding box slightly for the check
         const expandedBox = obj.box.clone();
         expandedBox.min.x -= enemyRadius;
         expandedBox.min.z -= enemyRadius;
         expandedBox.max.x += enemyRadius;
         expandedBox.max.z += enemyRadius;
-        
-        // Check if new position would collide
+
         if (newX >= expandedBox.min.x && newX <= expandedBox.max.x &&
-            newZ >= expandedBox.min.z && newZ <= expandedBox.max.z &&
-            enemy.mesh.position.y >= expandedBox.min.y && enemy.mesh.position.y <= expandedBox.max.y) {
+          newZ >= expandedBox.min.z && newZ <= expandedBox.max.z &&
+          enemy.mesh.position.y >= expandedBox.min.y && enemy.mesh.position.y <= expandedBox.max.y) {
           canMove = false;
           break;
         }
       }
-      
-      // Only move if no collision
+
       if (canMove) {
         enemy.mesh.position.x = newX;
         enemy.mesh.position.z = newZ;
       }
 
-      // Shoot only if has line of sight
-      const now = performance.now();
-      if (dist < 25 && now - enemy.lastShotTime > 1000 / enemy.fireRate) {
-        // Check line of sight before shooting
-        if (this.hasLineOfSight(enemy.mesh.position, playerPos, arenaObjects)) {
-          enemy.lastShotTime = now;
-          onEnemyShoot(enemy);
+      // --- SHOOTING LOGIC ---
+      if (enemy.fireRate > 0) { // Only if it has a fire rate
+        if (dist < 30 && now - enemy.lastShotTime > 1000 / enemy.fireRate) {
+          if (this.hasLineOfSight(enemy.mesh.position, playerPos, arenaObjects)) {
+            enemy.lastShotTime = now;
+            onEnemyShoot(enemy);
+          }
         }
       }
 
-      // Update appearance based on health
-      if (enemy.ring) {
-        enemy.ring.rotation.z += delta * 2;
+      // --- VISUAL UPDATES ---
+
+      // Razor spin
+      if (enemy.type === 'razor') {
+        const blade = enemy.mesh.userData.blade;
+        const spikes = enemy.mesh.userData.spikes;
+        if (blade) {
+          blade.rotation.z += delta * 10;
+          blade.rotation.y += delta * 2;
+        }
+        if (spikes) {
+          spikes.rotation.z -= delta * 8;
+        }
+        enemy.mesh.rotation.x = 0.5; // Tilt forward
       }
 
+      // Spectre pulse
+      if (enemy.type === 'spectre') {
+        enemy.mesh.position.y = 1.0 + Math.sin(now * 0.003) * 0.15;
+        // We need to access the material to pulse opacity
+        // Assuming the outer shell is the first child or we can find it
+        enemy.mesh.children.forEach(child => {
+          if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial && child.material.transparent) {
+            const phase = 0.2 + (Math.sin(now * 0.003 * 3) + 1) * 0.15;
+            child.material.opacity = phase;
+          }
+        });
+      }
+
+      // Color update based on health
       const healthRatio = enemy.health / enemy.maxHealth;
       const baseColor = new THREE.Color(ENEMY_TYPES[enemy.type].color);
       const currentColor = baseColor.clone().lerp(new THREE.Color(0x333333), 1 - healthRatio);
-      (enemy.body.material as THREE.MeshStandardMaterial).color.copy(currentColor);
-      (enemy.body.material as THREE.MeshStandardMaterial).emissive.copy(currentColor);
-      (enemy.body.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.2 * healthRatio;
-      (enemy.head.material as THREE.MeshStandardMaterial).color.copy(currentColor);
-      (enemy.head.material as THREE.MeshStandardMaterial).emissive.copy(currentColor);
+
+      enemy.mesh.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+          // Don't colorize transparent/special materials too much if we want to keep their effect
+          // But for now, let's just darken them
+          child.material.color.copy(currentColor);
+          child.material.emissive.copy(currentColor);
+          child.material.emissiveIntensity = 0.5 * healthRatio;
+        }
+      });
+
     });
   }
 
@@ -372,23 +399,26 @@ export class EnemyManager {
       }
     }
 
+    // Bulwark Shield Logic: Reduced damage from front?
+    // For now, let's just give Bulwark flat damage reduction
+    if (enemy.type === 'bulwark') {
+      damage *= 0.5;
+    }
+
     enemy.health -= headshot ? damage * 2 : damage;
-    
-    // Apply knockback if present
+
     if (typeof info !== 'number' && info.knockbackForce && info.sourcePosition) {
       const knockbackDir = enemy.mesh.position.clone().sub(info.sourcePosition).normalize();
-      knockbackDir.y = 0.5; // Add some lift
-      // Simple knockback simulation - in a real physics system we'd apply force
+      knockbackDir.y = 0.5;
       enemy.mesh.position.add(knockbackDir.multiplyScalar(info.knockbackForce * 0.1));
     }
 
-    // Play hurt sound if still alive, death sound if killed
     if (enemy.health <= 0) {
       this.playDeathSound(enemy);
     } else {
       this.playHurtSound(enemy);
     }
-    
+
     return enemy.health <= 0;
   }
 
@@ -447,28 +477,49 @@ export class EnemyManager {
     const shuffledSpawns = [...this.spawnPoints].sort(() => Math.random() - 0.5);
     let idx = 0;
 
-    // Wave 1-2: Only grunts with pistols
-    // Wave 3+: Start introducing soldiers with AKs
-    // Wave 5+: Start introducing heavies with AWPs
-    
-    if (wave <= 2) {
-      // Early waves: only grunts
-      for (let i = 0; i < 3 + wave; i++) {
-        this.createEnemy('grunt', shuffledSpawns[idx++ % 8].clone());
+    // Wave Progression
+    // 1: Grunts
+    // 2: Grunts + Shooters
+    // 3: Shooters + Swarmers
+    // 4: Heavy + Shooters
+    // 5: Heavy + Viper + Swarmers
+    // 6: Bulwark + Spectre
+    // 7+: Chaos
+
+    const spawn = (type: string, count: number) => {
+      for (let i = 0; i < count; i++) {
+        this.createEnemy(type, shuffledSpawns[idx++ % 8].clone());
       }
+    };
+
+    if (wave === 1) {
+      spawn('grunt', 4);
+    } else if (wave === 2) {
+      spawn('grunt', 3);
+      spawn('shooter', 2);
+    } else if (wave === 3) {
+      spawn('shooter', 3);
+      spawn('swarmer', 4);
+    } else if (wave === 4) {
+      spawn('heavy', 1);
+      spawn('shooter', 4);
+      spawn('grunt', 2);
+    } else if (wave === 5) {
+      spawn('heavy', 2);
+      spawn('viper', 2);
+      spawn('swarmer', 5);
+    } else if (wave === 6) {
+      spawn('bulwark', 2);
+      spawn('spectre', 3);
+      spawn('razor', 3);
     } else {
-      // Later waves: mix of enemy types
-      for (let i = 0; i < 3 + wave; i++) {
-        this.createEnemy('grunt', shuffledSpawns[idx++ % 8].clone());
-      }
-      for (let i = 0; i < Math.floor(wave / 2); i++) {
-        this.createEnemy('soldier', shuffledSpawns[idx++ % 8].clone());
-      }
-      if (wave >= 5) {
-        for (let i = 0; i < Math.floor(wave / 3); i++) {
-          this.createEnemy('heavy', shuffledSpawns[idx++ % 8].clone());
-        }
-      }
+      // Procedural scaling
+      spawn('heavy', Math.floor(wave / 2));
+      spawn('bulwark', Math.floor(wave / 3));
+      spawn('spectre', Math.floor(wave / 3));
+      spawn('razor', Math.floor(wave / 2));
+      spawn('shooter', wave);
+      spawn('swarmer', wave);
     }
   }
 }

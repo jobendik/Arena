@@ -473,30 +473,75 @@ export const WEAPON_CONFIG: WeaponConfig = {
 
 export const ENEMY_TYPES: Record<string, EnemyType> = {
   grunt: {
-    health: 50,
+    health: 40,
     speed: 4,
     damage: 10,
     fireRate: 1,
-    accuracy: 0.03, // Reduced from 0.15 - more accurate at close range
-    color: 0x22c55e,
+    accuracy: 0.05,
+    color: 0x00FFFF, // Cyan
     score: 100,
   },
-  soldier: {
-    health: 80,
+  shooter: { // Replaces soldier
+    health: 60,
     speed: 5,
     damage: 15,
     fireRate: 2,
-    accuracy: 0.02, // Reduced from 0.1 - soldiers are accurate
-    color: 0xf59e0b,
+    accuracy: 0.02,
+    color: 0x9D00FF, // Purple
     score: 200,
   },
   heavy: {
-    health: 150,
-    speed: 2.5,
+    health: 200,
+    speed: 2,
     damage: 25,
     fireRate: 0.5,
-    accuracy: 0.05, // Reduced from 0.2 - slow but powerful
-    color: 0xef4444,
+    accuracy: 0.05,
+    color: 0xFF0000, // Red
+    score: 300,
+  },
+  swarmer: {
+    health: 30,
+    speed: 9, // Very fast
+    damage: 15, // Melee damage
+    fireRate: 0, // Melee only
+    accuracy: 1,
+    color: 0xFF5500, // Orange
+    score: 50,
+  },
+  viper: {
+    health: 50,
+    speed: 6,
+    damage: 40,
+    fireRate: 0.5,
+    accuracy: 0.001, // Pinpoint
+    color: 0x00FF88, // Green
+    score: 250,
+  },
+  bulwark: {
+    health: 300,
+    speed: 1.5,
+    damage: 20,
+    fireRate: 1,
+    accuracy: 0.1,
+    color: 0x0066FF, // Blue
+    score: 400,
+  },
+  spectre: {
+    health: 40,
+    speed: 7,
+    damage: 25,
+    fireRate: 0, // Melee/Close range
+    accuracy: 1,
+    color: 0x5555FF, // Ghost Blue
+    score: 350,
+  },
+  razor: {
+    health: 80,
+    speed: 8,
+    damage: 30,
+    fireRate: 0, // Melee
+    accuracy: 1,
+    color: 0xFF00FF, // Magenta
     score: 300,
   },
 };
