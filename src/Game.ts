@@ -43,7 +43,9 @@ export class Game {
   private hudManager: HUDManager;
   private startScreen?: StartScreen;
   private mobileControls?: MobileControls;
+
   private isMobile: boolean;
+  private backendConnector: BackendConnector;
 
   private gameState: GameState;
   private lastTime = 0;
@@ -149,7 +151,7 @@ export class Game {
     this.postProcessing = new PostProcessing(this.renderer, this.scene, this.camera);
 
     this.backendConnector = new BackendConnector();
-    this.backendConnector.getLoadout().then(loadout => {
+    this.backendConnector.getLoadout().then((loadout: any) => {
       if (loadout) {
         console.log('Loadout received:', loadout);
         // TODO: Apply loadout to player/weapon system
@@ -592,7 +594,7 @@ export class Game {
         score: this.gameState.score,
         timePlayed: time,
         won: false // Always false for now as it's survival
-      }).then(result => {
+      }).then((result: any) => {
         if (result) {
           console.log('Stats synced successfully:', result);
           if (result.newLevel) {
